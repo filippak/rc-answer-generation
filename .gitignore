@@ -2,12 +2,19 @@
 /data-analysis/data_frames/
 /data-analysis/figures/
 
+# other saved corpus files
+context-corpus.txt
+svenska-ord.txt
+
 # generated files
 .pkl
 .png
 
 # ipynb_checkpoints
 .ipynb_checkpoints/
+
+# additional data
+idf_sv.csv
 
 # Mac files
 .DS_Store
