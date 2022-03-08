@@ -5,10 +5,9 @@ import numpy as np
 from transformers import AutoModel, AutoTokenizer, DataCollatorForTokenClassification, AutoModelForTokenClassification, TrainingArguments, Trainer
 import torch
 import pickle
-from sklearn.model_selection import train_test_split
 import wandb
 from torch.utils.data import DataLoader
-from helper import ContextAnswerDataset
+from helper import ContextAnswerDataset, WeightedLossTrainer
 import argparse
 import random
 
@@ -22,12 +21,15 @@ BATCH_SIZE = 16
 
 
 def load_data(path):
-    with open(path, "rb") as input_file:
-        data = pickle.load(input_file)
-    return data
+    train_path = path + '_train.pkl'
+    val_path = path + '_eval.pkl'
+    with open(train_path, "rb") as input_file:
+        train_data = pickle.load(input_file)
+    with open(val_path, "rb") as input_file:
+        val_data = pickle.load(input_file)
+    return train_data, val_data
 
-def make_batches(data, seed):
-    train_data, val_data = train_test_split(data, test_size=0.2, random_state=seed)
+def make_batches(train_data, val_data):
     # put data in custom dataset class
     train_dataset = ContextAnswerDataset(train_data)
     val_dataset = ContextAnswerDataset(val_data)
@@ -38,7 +40,7 @@ def make_batches(data, seed):
 
 def main(args):
     wandb.init(project=args.wandb_project, entity="filippak")
-    data = load_data(args.data_path)
+    train_data, val_data = load_data(args.data_path)
     # data is already tokenized with tokenizeer in the dataset.py script
     tokenizer = AutoTokenizer.from_pretrained('KB/bert-base-swedish-cased')
     model = AutoModel.from_pretrained('KB/bert-base-swedish-cased')
@@ -47,11 +49,13 @@ def main(args):
     num_labels = args.num_labels
     model = AutoModelForTokenClassification.from_pretrained("KB/bert-base-swedish-cased", num_labels=num_labels)
 
-    train_data, val_data = make_batches(data, args.seed)
+    train_data, val_data = make_batches(train_data, val_data)
 
     training_args = TrainingArguments(
         output_dir="./results",
-        evaluation_strategy="epoch",
+        evaluation_strategy="steps", # can be epochs, then add logging_strategy="epoch",
+        eval_steps=2,
+        logging_steps=2,
         learning_rate=2e-5,
         per_device_train_batch_size=BATCH_SIZE,
         per_device_eval_batch_size=BATCH_SIZE,
@@ -60,7 +64,7 @@ def main(args):
         report_to="wandb"
     )
 
-    trainer = Trainer(
+    trainer = WeightedLossTrainer(
         model=model,
         args=training_args,
         train_dataset=train_data,
