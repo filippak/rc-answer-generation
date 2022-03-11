@@ -28,6 +28,8 @@ labels_s = [
     "I-sentence",
 ]
 
+CRA_TOKENS =  ['[BGN]', '[END]']
+
 def load_data(path):
     df = pd.read_pickle(path)
     return df
@@ -40,10 +42,12 @@ def tokenize_data(tokenizer, data, max_tok_len=512):
         tokenized_input = align_labels_single_context(context, labels, tokenizer, max_tok_len)
         tokenized_inputs_arr.append(tokenized_input)
 
+    tokens = tokenizer.convert_ids_to_tokens(tokenized_inputs_arr[2]["input_ids"])
+    print(tokens)
     return tokenized_inputs_arr
 
-def align_labels_single_context(context, labels_in, tokenizer, max_tok_len=512, special_tokens=True):
-    tokenized_inputs = tokenizer(context, truncation=True, max_length=max_tok_len, is_split_into_words=True, add_special_tokens=special_tokens)
+def align_labels_single_context(context, labels_in, tokenizer, max_tok_len=512):
+    tokenized_inputs = tokenizer(context, truncation=True, max_length=max_tok_len, is_split_into_words=True)
 
     word_ids = tokenized_inputs.word_ids()  # Map tokens to their respective word.
     previous_word_idx = None
@@ -68,7 +72,7 @@ def parse_answers(data, tokenizer):
         ans_labels = item['answer_labels'] # array of labels
 
         # Don't add special tokens to the tokenized answer! (removes [CLS] in the beginning and [SEP] in the end)
-        ans_tokenized = align_labels_single_context(ans, ans_labels, tokenizer, MAX_ANS_LEN, False)
+        ans_tokenized = align_labels_single_context(ans, ans_labels, tokenizer, MAX_ANS_LEN)
         ans_arr.append(ans_tokenized)
     
     return ans_arr
@@ -98,14 +102,18 @@ def main(args):
         ans_tokenized_inputs_arr = parse_answers(data, tokenizer) # array of the tokenized answer data
         tokenized_inputs_arr = add_answers_to_tokenized_data(tokenized_inputs_arr, ans_tokenized_inputs_arr, tokenizer)
     else:
+        if args.CRA:
+            num_added_toks = tokenizer.add_tokens(CRA_TOKENS)
+            print('Added ', num_added_toks, 'tokens')
         tokenized_inputs_arr = tokenize_data(tokenizer, data)
     
     # save the train and eval data
-    if args.test_data:
+    if args.test_data or args.parse_answers or args.CRA:
+        print('Data size: ', len(tokenized_inputs_arr))
         with open(args.output_path, "wb") as output_file:
             pickle.dump(tokenized_inputs_arr, output_file)   
     else:
-        train_data, eval_data = train_test_split(tokenized_inputs_arr, test_size=0.1, random_state=args.seed)
+        train_data, eval_data = train_test_split(tokenized_inputs_arr, test_size=0.2, random_state=args.seed)
         print('Training data size: ', len(train_data))
         print('Evaluation data size: ', len(eval_data))
         train_file = args.output_path + "_train.pkl"
@@ -128,6 +136,7 @@ if __name__ == '__main__':
         help='path to output file where the parsed data will be stored', action='store')
     parser.add_argument('--answers', dest='parse_answers', action='store_true')
     parser.add_argument('--test', dest='test_data', action='store_true')
+    parser.add_argument('--CRA', dest='CRA', action='store_true')
     parser.add_argument('--seed', dest='seed', type=int, 
         help='fix random seeds', action='store', default=42)
 

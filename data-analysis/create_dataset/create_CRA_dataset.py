@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import argparse
 from create_CA_dataset import find_answer_start
+from create_CAR_dataset import train_val_split
 
 
 labels = [
@@ -90,8 +91,12 @@ def main(args):
     labeled_data = label_data(df, df_sent)
     labeled_df = pd.DataFrame(labeled_data)
 
-    # save dataframe
-    labeled_df.to_pickle(args.output_path)
+    # split into train and validation set
+    df_train, df_val = train_val_split(labeled_df, 0.2)
+
+    # save dataframes
+    df_train.to_pickle(args.output_path+'_train.pkl')
+    df_val.to_pickle(args.output_path+'_eval.pkl')
 
 
 

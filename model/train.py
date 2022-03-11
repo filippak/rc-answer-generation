@@ -16,8 +16,8 @@ import random
 
 # https://wandb.ai/filippak/answer-extraction
 
-SPECIAL_TOKEN_LABEL = -100
 BATCH_SIZE = 16
+CRA_TOKENS =  ['[BGN]', '[END]']
 
 
 def load_data(path):
@@ -43,11 +43,15 @@ def main(args):
     train_data, val_data = load_data(args.data_path)
     # data is already tokenized with tokenizeer in the dataset.py script
     tokenizer = AutoTokenizer.from_pretrained('KB/bert-base-swedish-cased')
-    model = AutoModel.from_pretrained('KB/bert-base-swedish-cased')
+    # model = AutoModel.from_pretrained('KB/bert-base-swedish-cased')
 
     data_collator = DataCollatorForTokenClassification(tokenizer)
     num_labels = args.num_labels
     model = AutoModelForTokenClassification.from_pretrained("KB/bert-base-swedish-cased", num_labels=num_labels)
+    if args.CRA:
+        num_added_toks = tokenizer.add_tokens(CRA_TOKENS)
+        print('Added', num_added_toks, 'tokens')
+        model.resize_token_embeddings(len(tokenizer))
 
     train_data, val_data = make_batches(train_data, val_data)
 
@@ -94,6 +98,7 @@ if __name__ == '__main__':
         help='number of labels', action='store', default=3)
     parser.add_argument('epochs', type=int, 
         help='number of training epochs', action='store', default=3)
+    parser.add_argument('--CRA', dest='CRA', action='store_true')
     parser.add_argument('--seed', dest='seed', type=int, 
         help='fix random seeds', action='store', default=42)
 
