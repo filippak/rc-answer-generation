@@ -42,8 +42,8 @@ def tokenize_data(tokenizer, data, max_tok_len=512):
 
     return tokenized_inputs_arr
 
-def align_labels_single_context(context, labels_in, tokenizer, max_tok_len=512):
-    tokenized_inputs = tokenizer(context, truncation=True, max_length=max_tok_len, is_split_into_words=True)
+def align_labels_single_context(context, labels_in, tokenizer, max_tok_len=512, special_tokens=True):
+    tokenized_inputs = tokenizer(context, truncation=True, max_length=max_tok_len, is_split_into_words=True, add_special_tokens=special_tokens)
 
     word_ids = tokenized_inputs.word_ids()  # Map tokens to their respective word.
     previous_word_idx = None
@@ -64,10 +64,11 @@ def parse_answers(data, tokenizer):
     ans_arr = []
 
     for idx, item in data.iterrows():
-        ans = item['answer'] # aray of tokens
+        ans = item['answer'] # array of tokens
         ans_labels = item['answer_labels'] # array of labels
 
-        ans_tokenized = align_labels_single_context(ans, ans_labels, tokenizer, MAX_ANS_LEN)
+        # Don't add special tokens to the tokenized answer! (removes [CLS] in the beginning and [SEP] in the end)
+        ans_tokenized = align_labels_single_context(ans, ans_labels, tokenizer, MAX_ANS_LEN, False)
         ans_arr.append(ans_tokenized)
     
     return ans_arr
