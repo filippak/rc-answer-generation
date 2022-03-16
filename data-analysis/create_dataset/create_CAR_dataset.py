@@ -25,7 +25,7 @@ def get_tokens_and_labels(sentences, ranked_sentence_ids):
     l = np.concatenate(all_labels).ravel()
     return context_text, l
 
-def label_data(df, df_relevant_sentences):
+def label_data(df):
     relevant_sentence_data = []
     context_to_id = {}
     c_context_id = 0
@@ -41,7 +41,7 @@ def label_data(df, df_relevant_sentences):
         sentences = row['context_raw']
         answer = row['correct_answer_raw']
         sent_with_ans_id = row['answer_location']
-        relevant_sentence_ids = df_relevant_sentences.iloc[index]['ranked_matching_sentence_ids']
+        relevant_sentence_ids = row['relevant_sentence_ids']
         sent_ids = [sent_with_ans_id]
         
         count = 0
@@ -61,50 +61,17 @@ def label_data(df, df_relevant_sentences):
     print(relevant_sentence_data[20])
     return relevant_sentence_data
 
-def train_val_split(df, frac):
-    train_context_ids = []
-    val_context_ids = []
-    df_train = pd.DataFrame()
-    df_val = pd.DataFrame()
-    num_in_val = int(np.floor(len(df) * frac))
-    print('num in validation set: ', num_in_val)
-    num = 0
-    while num < num_in_val:
-        for index, row in df.iterrows():
-            context_id = row['context_id']
-            n = random.random()
-            if context_id in train_context_ids:
-                df_train = df_train.append(row, ignore_index=True)
-            elif context_id in val_context_ids:
-                df_val = df_val.append(row, ignore_index=True)
-                num += 1
-            elif n < frac:
-                df_val = df_val.append(row, ignore_index=True)
-                val_context_ids.append(context_id)
-                num += 1
-            else:
-                df_train = df_train.append(row, ignore_index=True)
-                train_context_ids.append(context_id)
-            if num == num_in_val:
-                break
-    return df_train, df_val
-
 
 
 def main(args):
     df = pd.read_pickle(args.data_path)
-    df_sent = pd.read_pickle(args.sent_data_path)
     print('Num data points: ', len(df))
 
-    labeled_data = label_data(df, df_sent)
+    labeled_data = label_data(df)
     labeled_df = pd.DataFrame(labeled_data)
 
-    # split into train and validation set
-    df_train, df_val = train_val_split(labeled_df, 0.2)
-
     # save dataframes
-    df_train.to_pickle(args.output_path+'_train.pkl')
-    df_val.to_pickle(args.output_path+'_eval.pkl')
+    labeled_df.to_pickle(args.output_path)
 
 
 
@@ -114,17 +81,8 @@ if __name__ == '__main__':
     # command-line arguments
     parser.add_argument('data_path', type=str, 
         help='path to first json file', action='store')
-    parser.add_argument('sent_data_path', type=str, 
-        help='path to sentence data file', action='store')
     parser.add_argument('output_path', type=str,
         help='path to output file where the parsed data will be stored', action='store')
-    parser.add_argument('--seed', dest='seed', type=int, 
-        help='fix random seeds', action='store', default=42)
-
-    args = parser.parse_args()
-    random.seed(args.seed)
-    np.random.seed(args.seed)
-
 
     args = parser.parse_args()
     main(args)

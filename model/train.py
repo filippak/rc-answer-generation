@@ -7,7 +7,7 @@ import torch
 import pickle
 import wandb
 from torch.utils.data import DataLoader
-from helper import ContextAnswerDataset, WeightedLossTrainer
+from helper import ContextAnswerDataset, WeightedLossTrainerCA, WeightedLossTrainerCAR, WeightedLossTrainerCRA
 import argparse
 import random
 
@@ -67,15 +67,33 @@ def main(args):
         weight_decay=0.01,
         report_to="wandb"
     )
-
-    trainer = WeightedLossTrainer(
-        model=model,
-        args=training_args,
-        train_dataset=train_data,
-        eval_dataset=val_data,
-        data_collator=data_collator,
-        tokenizer=tokenizer,
-    )
+    if args.CAR:
+        trainer = WeightedLossTrainerCAR(
+            model=model,
+            args=training_args,
+            train_dataset=train_data,
+            eval_dataset=val_data,
+            data_collator=data_collator,
+            tokenizer=tokenizer,
+        )
+    elif args.CRA:
+        trainer = WeightedLossTrainerCRA(
+            model=model,
+            args=training_args,
+            train_dataset=train_data,
+            eval_dataset=val_data,
+            data_collator=data_collator,
+            tokenizer=tokenizer,
+        )
+    else:
+        trainer = WeightedLossTrainerCA(
+            model=model,
+            args=training_args,
+            train_dataset=train_data,
+            eval_dataset=val_data,
+            data_collator=data_collator,
+            tokenizer=tokenizer,
+        )
     print('training model..')
     trainer.train()
     print('finished training model')
@@ -98,6 +116,7 @@ if __name__ == '__main__':
         help='number of labels', action='store', default=3)
     parser.add_argument('epochs', type=int, 
         help='number of training epochs', action='store', default=3)
+    parser.add_argument('--CAR', dest='CAR', action='store_true')
     parser.add_argument('--CRA', dest='CRA', action='store_true')
     parser.add_argument('--seed', dest='seed', type=int, 
         help='fix random seeds', action='store', default=42)

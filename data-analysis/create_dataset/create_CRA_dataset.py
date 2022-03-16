@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 import argparse
 from create_CA_dataset import find_answer_start
-from create_CAR_dataset import train_val_split
 
 
 labels = [
@@ -47,7 +46,7 @@ def get_tokens_and_labels(sentences, ranked_sentence_ids, answer):
     return context_text, l
 
 # create the dataset with the corresponding labels
-def label_data(df, df_relevant_sentences):
+def label_data(df):
     relevant_sentence_data = []
     context_to_id = {}
     c_context_id = 0
@@ -63,7 +62,7 @@ def label_data(df, df_relevant_sentences):
         sentences = row['context_raw']
         answer = row['correct_answer_raw']
         sent_with_ans_id = row['answer_location']
-        relevant_sentence_ids = df_relevant_sentences.iloc[index]['ranked_matching_sentence_ids']
+        relevant_sentence_ids = row['relevant_sentence_ids']
         sent_ids = [sent_with_ans_id]
         
         count = 0
@@ -85,18 +84,13 @@ def label_data(df, df_relevant_sentences):
 
 def main(args):
     df = pd.read_pickle(args.data_path)
-    df_sent = pd.read_pickle(args.sent_data_path)
     print('Num data points: ', len(df))
 
-    labeled_data = label_data(df, df_sent)
+    labeled_data = label_data(df)
     labeled_df = pd.DataFrame(labeled_data)
 
-    # split into train and validation set
-    df_train, df_val = train_val_split(labeled_df, 0.2)
-
     # save dataframes
-    df_train.to_pickle(args.output_path+'_train.pkl')
-    df_val.to_pickle(args.output_path+'_eval.pkl')
+    labeled_df.to_pickle(args.output_path)
 
 
 
@@ -106,8 +100,6 @@ if __name__ == '__main__':
     # command-line arguments
     parser.add_argument('data_path', type=str, 
         help='path to first json file', action='store')
-    parser.add_argument('sent_data_path', type=str, 
-        help='path to sentence data file', action='store')
     parser.add_argument('output_path', type=str,
         help='path to output file where the parsed data will be stored', action='store')
 
