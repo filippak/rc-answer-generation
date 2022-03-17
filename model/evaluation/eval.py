@@ -11,8 +11,13 @@ import torch.nn as nn
 
 CRA_TOKENS =  ['[BGN]', '[END]']
 
-# function that strictly extracts correctly formatted answers
 def get_token_segments(labels):
+    """
+    Function to extract correctly formatted answers
+    
+    Input: array of labels (can be predicted labels, or true labels)
+    Output: array of tuples; (start index of answer, length of answer)
+    """
     labels_stats = []
     for idx, label in enumerate(labels):
         if label == 1:
@@ -26,7 +31,15 @@ def get_token_segments(labels):
     return labels_stats
 
 def correct_word_piece_tokens(tokenized_inputs, labels_in):
-    # print('labels: ', labels_in)
+    """
+    Function to correct labels on given input data.
+    This function is used to
+    - In the predicted labels, correct the labels of WordPieces that are in the same original token as the previous WordPiece
+    - In the true labels, change the -100 labels (used in the case mentioned above, and for CLS, SEP, UNK, .. tokens 
+    
+    Input: array of data, processed by tokenizer
+    Output: array of corrected labels
+    """
     word_ids = tokenized_inputs.word_ids()  # Map tokens to their respective word.
     previous_word_idx = None
     previous_word_label = None
@@ -35,7 +48,7 @@ def correct_word_piece_tokens(tokenized_inputs, labels_in):
         if word_idx is None:
             label_ids.append(0) # label CLS, SEP as 0..
             previous_word_label = 0
-        elif word_idx != previous_word_idx:  # Only label the first token of a given word.
+        elif word_idx != previous_word_idx: 
             label_ids.append(labels_in[idx])
             previous_word_label = labels_in[idx]
         else:
@@ -49,11 +62,16 @@ def correct_word_piece_tokens(tokenized_inputs, labels_in):
                 previous_word_label = 0
         previous_word_idx = word_idx
     
-    # print('labels out: ', label_ids)
     return label_ids
 
-# function that modifies the predicted answer outputs so that sequences that starts with a 2, becomes a 1
 def prediction_output_modified(output):
+    """
+    Function that given the predicted labels, updates the labels to fit intended data output format.
+    Specifically, corrects predicted answer spans that start with a 2, to instead start with a 1
+    
+    Input: array of labels
+    Output: array of corrected labels
+    """
     corrected_output = []
     prev_label = 0
     for idx, label in enumerate(output):
@@ -65,8 +83,14 @@ def prediction_output_modified(output):
             prev_label = label
     return corrected_output
 
-# remove all segments that start with 2
 def prediction_output_strict(output):
+    """
+    Function that given the predicted labels, removes sequences that are incorrectly formatted
+    Specifically, removed predicted answer spans that start with a 2
+    
+    Input: array of labels
+    Output: array of corrected labels
+    """
     corrected_output = []
     prev_label = 0
     for idx, label in enumerate(output):
@@ -81,20 +105,29 @@ def prediction_output_strict(output):
 
 
 def evaluate_model_tokens(labels, predicted):
-    FP = 0
-    TP = 0
-    TN = 0
-    FN = 0
+    """
+    Function that extracts stats on token-basis
+    
+    Input: array of true labels, array of predicted labels
+    Output: stats for the two given arrays
+    """
+    stats = {'FP': 0, 'TP': 0, 'FN': 0}
     for idx, label in enumerate(labels):
         if label > 0 and predicted[idx] > 0:
-            TP += 1
+            stats['TP'] += 1
         elif label > 0:
-            FP += 1
+            stats['FP'] += 1
         elif predicted[idx] > 0:
-            FN += 1
-    return [FP, TP, FN]
+            stats['FN'] += 1
+    return stats
 
 def get_correct_answer_dict(label_segments):
+    """
+    Function that returns dictionary with the input as keys
+
+    Input: array of tuples; (start index of answer, length of answer)
+    Output: dict with string versions of tuples as keys
+    """
     label_dict = {}
     for a in label_segments:
         key = str(a[0]) + ' ' + str(a[1])
@@ -102,6 +135,12 @@ def get_correct_answer_dict(label_segments):
     return label_dict
 
 def get_jaccard_score(a, s):
+    """
+    Function that computes the jaccard score between two sequences
+
+    Input: two tuples; (start index of answer, length of answer). Guaranteed to overlap
+    Output: jaccard score computed for the two sequences
+    """
     a_start = a[0]
     a_end = a[0]+a[1]-1
     start = s[0]
@@ -113,12 +152,14 @@ def get_jaccard_score(a, s):
 
 
 def evaluate_model_answer_spans(true_labels, output_labels):
-    FP = 0
-    TP = 0
-    TN = 0
-    FN = 0
-    jaccard_scores = []
-    segment_lengths = []
+    """
+    Function that evaluates overlap between true labels and predicted output on an answer level
+    An output segment is considered a match if it overlaps with a segment in the true labels
+    
+    Input: Two arrays; one of true labels and one of predicted labels
+    Output: Statistics of comparison between true labels and predictions
+    """
+    stats = {'FP': 0, 'TP': 0, 'FN': 0, 'jaccard': [], 'overlap': []}
     label_segments = get_token_segments(true_labels)
     predicted_segments = get_token_segments(output_labels)
     num_answers = len(label_segments)
@@ -146,34 +187,39 @@ def evaluate_model_answer_spans(true_labels, output_labels):
                         label_dict[label_dict_key]['max_jacc'] = jacc
                         label_dict[label_dict_key]['segment_length'] = s[1]-a[1]
                 else:
-                    TP += 1 # only count 1 true positive
+                    stats['TP'] += 1 # only count 1 true positive
                     label_dict[label_dict_key] = {'max_jacc': jacc, 'segments': [{'segment':s, 'jaccard': jacc}], 'segment_length': s[1]-a[1]}
-                # break # shound only consider overlap with one answer at a time??
             
-            # only count each of the predicted segments as a false negative once (else they are counted once for each correct answer)
+            # only count each of the predicted segments as a false negative once!
             elif output_dict[output_dict_key] == None:
-                FN += 1
+                stats['FN'] += 1
                 output_dict[output_dict_key] = True
         
-        # add the max jaccard scores
+        # add the max jaccard score for the current correct answer (if a match was found)
         if label_dict[label_dict_key] != None:
-            jaccard_scores.append(label_dict[label_dict_key]['max_jacc'])
-            segment_lengths.append(label_dict[label_dict_key]['segment_length'])
+            stats['jaccard'].append(label_dict[label_dict_key]['max_jacc'])
+            stats['overlap'].append(label_dict[label_dict_key]['segment_length'])
 
 
     # the number of correct answers that were missed
-    FP += num_answers - TP
-    return [FP, TP, FN, jaccard_scores, segment_lengths]
+    stats['FP'] += num_answers - stats['TP']
+    return stats
 
 def print_extracted_answers(output_labels, tokens):
+    """
+    Function that prints tokens corresponding to answer segments 
+    
+    Input: 
+    - output_labels: array of labels
+    - tokens: array of tokens corresponding to the labels
+    Output: array of strings corresponding to the answer segments as present in the labels array
+    """
     predicted_segments = get_token_segments(output_labels)
     all_l = []
     for segment in predicted_segments:
-        # print('segment: ', segment)
         l = ''
         for i in range(segment[1]):
             token = tokens[segment[0]+i]
-            # token can be NoneType?
             if token.startswith('##'):
                 l += token[2:]
             elif len(l) > 0: # not the first word in answer phrase
@@ -184,89 +230,90 @@ def print_extracted_answers(output_labels, tokens):
         all_l.append(l)
     return all_l
 
-def evaluate_model(model, tokenizer, data, use_strict):
-    FP = 0
-    TP = 0
-    TN = 0
-    FN = 0
-    FP_t = 0
-    TP_t = 0
-    FN_t = 0
-    jaccard_scores = []
-    segment_lengths = [] # (correct segment length, predicted segment length)
-    for i in range(len(data)):
-        output = model(torch.tensor([data[i]['input_ids']]), attention_mask=torch.tensor([data[i]['attention_mask']]), token_type_ids=torch.tensor([data[i]['token_type_ids']]), labels=torch.tensor([data[i]['labels']]))
-        # print('test idx: ', i)
-        # print('instance loss: ', output.loss)
-        m = nn.Softmax(dim=2)
-        max = m(output.logits)
-        out = torch.argmax(max, dim=2)
 
-        tokens = tokenizer.convert_ids_to_tokens(data[i]["input_ids"])
+def get_model_predictions(data, model):
+    """
+    Function to get prediction for a data point (datapoint being a tokenized text segment)
+    
+    Input: data to predict, model to predict with
+    Output: predictions for input data (array of tensors on size 1)
+    """
+    output = model(torch.tensor([data['input_ids']]), attention_mask=torch.tensor([data['attention_mask']]), token_type_ids=torch.tensor([data['token_type_ids']]), labels=torch.tensor([data['labels']]))
+    m = nn.Softmax(dim=2)
+    max = m(output.logits)
+    out = torch.argmax(max, dim=2)
+    return out[0]
+
+def evaluate_model(model, tokenizer, data, use_strict):
+    """
+    function to evaluate model on given data
+    
+    Input: 
+    - model to use for prediction
+    - t
+    Output: predictions for input data (array of tensors on size 1)
+    """
+    answer_stats = {'FP': 0, 'TP': 0, 'FN': 0, 'jaccard': [], 'overlap': []}
+    token_stats = {'FP': 0, 'TP': 0, 'FN': 0}
+    for i in range(len(data)):
+        out = get_model_predictions(data[i], model)
+
+        tokens = tokenizer.convert_ids_to_tokens(data[i]["input_ids"]) # to use if printing results..
         true_labels = correct_word_piece_tokens(data[i], data[i]['labels']) # replace the -100 labels used in training..
         data[i]['true_labels'] = true_labels
-        # print('answers: ')
         # print_extracted_answers(true_labels, tokens)
 
-        # merge the word piece tokens (if word piece token # 1 has label 1, # 2 should have label 2 etc. )
-        output_labels = correct_word_piece_tokens(data[i], out[0])
+        output_labels = correct_word_piece_tokens(data[i], out)
         if use_strict:
             output_labels = prediction_output_strict(output_labels)
         else:
             output_labels = prediction_output_modified(output_labels)
+        
         # set the output labels to the data point
         data[i]['predicted_labels'] = output_labels
-        # print('predictions: ')
-        # print_extracted_answers(output_labels, tokens)
 
-        a_results = evaluate_model_answer_spans(true_labels, output_labels)
-        FP += a_results[0]
-        TP += a_results[1]
-        FN += a_results[2]
-        jaccard_scores += a_results[3]
-        segment_lengths += a_results[4]
+        item_stats = evaluate_model_answer_spans(true_labels, output_labels)
+        answer_stats['FP'] += item_stats['FP']
+        answer_stats['TP'] += item_stats['TP']
+        answer_stats['FN'] += item_stats['FN']
+        answer_stats['jaccard'] += item_stats['jaccard']
+        answer_stats['overlap'] += item_stats['overlap']
 
-        t_results = evaluate_model_tokens(true_labels, output_labels)
-        FP_t += t_results[0]
-        TP_t += t_results[1]
-        FN_t += t_results[2]
+        item_token_stats = evaluate_model_tokens(true_labels, output_labels)
+        token_stats['FP'] += item_token_stats['FP']
+        token_stats['TP'] += item_token_stats['TP']
+        token_stats['FN'] += item_token_stats['FN']
     
-    pre_t = TP_t/(TP_t+FP_t)
-    rec_t = TP_t/(TP_t+FN_t)
+    # calculate precision and recall, F1-score
+    pre_t = token_stats['TP']/(token_stats['TP'] + token_stats['FP'])
+    rec_t = token_stats['TP']/(token_stats['TP']+token_stats['FN'])
     f1_t = 2 * (pre_t * rec_t)/(pre_t + rec_t)
     print('Precision, tokens: {:.2f}'.format(pre_t))
     print('Recall, tokens: {:.2f}'.format(rec_t))
     print('F1-score, tokens: {:.2f}'.format(f1_t))
     
-    pre = TP/(TP+FP)
-    rec = TP/(TP+FN)
+    pre = answer_stats['TP']/(answer_stats['TP']+answer_stats['FP'])
+    rec = answer_stats['TP']/(answer_stats['TP']+answer_stats['FN'])
     f1 = 2 * (pre * rec)/(pre + rec)
     print('Precision, answers: {:.2f}'.format(pre))
     print('Recall, answers: {:.2f}'.format(rec))
     print('F1-score, answers: {:.2f}'.format(f1))
-    print('Mean Jaccard score: {:.2f}'.format(np.mean(np.ravel(jaccard_scores))))
-    print('Mean answer length diff: {:.2f}'.format(np.mean(np.ravel(segment_lengths))))
+    print('Mean Jaccard score: {:.2f}'.format(np.mean(np.ravel(answer_stats['jaccard']))))
+    print('Mean answer length diff (predicted - true): {:.2f}'.format(np.mean(np.ravel(answer_stats['overlap']))))
 
-
-        
-
-    # calculate precision and recall
 
 
 def main(args):
     tokenizer = AutoTokenizer.from_pretrained('KB/bert-base-swedish-cased')
     if args.CRA: # add BGN and END tokens
         num_added_toks = tokenizer.add_tokens(CRA_TOKENS)
-        # print('Added ', num_added_toks, 'tokens')
 
     model = torch.load(args.model_path)
     model.eval()
+
     with open(args.data_path, "rb") as input_file:
         validation_data = pickle.load(input_file)
-    # tokens = tokenizer.convert_ids_to_tokens(validation_data[0]["input_ids"])
-    # print(tokens)
-    # dec = tokenizer.decode(validation_data[0]["input_ids"])
-    # print(dec)
+    
     evaluate_model(model, tokenizer, validation_data, args.strict)
 
     # save the outputs for the validation data. to use for comparison between CA and CRA model outputs
