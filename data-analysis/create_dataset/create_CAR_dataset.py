@@ -27,21 +27,13 @@ def get_tokens_and_labels(sentences, ranked_sentence_ids):
 
 def label_data(df):
     relevant_sentence_data = []
-    context_to_id = {}
-    c_context_id = 0
 
     for index, row in df.iterrows():
-        if not row['context'] in context_to_id:
-            context_id = c_context_id
-            context_to_id[row['context']] = c_context_id
-            c_context_id += 1
-        else:
-            context_id = context_to_id[row['context']]
-
         sentences = row['context_raw']
         answer = row['correct_answer_raw']
         sent_with_ans_id = row['answer_location']
         relevant_sentence_ids = row['relevant_sentence_ids']
+        context_id = row['context_id']
         sent_ids = [sent_with_ans_id]
         
         count = 0
@@ -54,10 +46,9 @@ def label_data(df):
         context_text, labels = get_tokens_and_labels(sentences, sent_ids)
         labels = [ int(x) for x in labels ]
         ans_labels = np.zeros(len(answer), dtype=int)
-        data_point = { 'context_id': context_id, 'id': index, 'labels': labels, 'tokens': context_text, 'answer': answer, 'answer_labels': ans_labels }
+        data_point = {'context_id': context_id, 'id': index, 'labels': labels, 'tokens': context_text, 'answer': answer, 'answer_labels': ans_labels }
         relevant_sentence_data.append(data_point)
     
-    print('Num context texts: ', c_context_id)
     print(relevant_sentence_data[20])
     return relevant_sentence_data
 

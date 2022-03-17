@@ -56,6 +56,7 @@ def label_data(df):
         sentences = row['context_raw']
         sent_with_ans_id = row['answer_location']
         answer = row['correct_answer_raw']
+        context_id = row['context_id']
 
         context_text, labels = get_tokens_and_labels(sentences, answer, sent_with_ans_id)
 
@@ -84,7 +85,7 @@ def label_data(df):
                 data_map[row['context']] = old_point
                 
         else:
-            data_point = { 'id': index, 'labels': labels, 'tokens': context_text, 'answers': [answer] }
+            data_point = { 'context_id': context_id, 'id': index, 'labels': labels, 'tokens': context_text, 'answers': [answer] }
             data_map[row['context']] = data_point
     
     print('number of overlapping answers (removed): ', num_removed)

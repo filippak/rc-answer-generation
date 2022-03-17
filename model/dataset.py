@@ -35,16 +35,18 @@ def load_data(path):
 
 def tokenize_data(tokenizer, data, max_tok_len=512):
     tokenized_inputs_arr = []
+    tokenized_inputs_arr_with_id = []
     for idx, item in data.iterrows():
         context = item['tokens']
         labels = item['labels']
         tokenized_input = align_labels_single_context(context, labels, tokenizer, max_tok_len)
         tokenized_inputs_arr.append(tokenized_input)
+        # create copy with context id (does not work to train on)
+        tokenized_input_with_id = tokenized_input.copy()
+        tokenized_input_with_id['context_id'] = item['context_id'] # set the context id of tokenized data
+        tokenized_inputs_arr_with_id.append(tokenized_input_with_id)
 
-    tokens = tokenizer.convert_ids_to_tokens(tokenized_inputs_arr[2]["input_ids"])
-    print(tokens)
-    print('labels: ', tokenized_inputs_arr[2]["labels"])
-    return tokenized_inputs_arr
+    return tokenized_inputs_arr, tokenized_inputs_arr_with_id
 
 def align_labels_single_context(context, labels_in, tokenizer, max_tok_len=512, special_tokens=True):
     tokenized_inputs = tokenizer(context, truncation=True, max_length=max_tok_len, is_split_into_words=True, add_special_tokens=special_tokens)
@@ -85,10 +87,7 @@ def add_answers_to_tokenized_data(tokenized_context, ans_data, tokenizer):
         context['token_type_ids'] += ans['token_type_ids']
         context['attention_mask'] += ans['attention_mask']
         context['labels'] += ans['labels']
-        # tokens = tokenizer.convert_ids_to_tokens(context["input_ids"])
-        # print(tokens)
-    tokens = tokenizer.convert_ids_to_tokens(tokenized_context[2]["input_ids"])
-    print(tokens)
+
     return tokenized_context
 
 
@@ -98,19 +97,25 @@ def main(args):
     tokenizer = AutoTokenizer.from_pretrained('KB/bert-base-swedish-cased')
 
     if args.parse_answers:
-        tokenized_inputs_arr = tokenize_data(tokenizer, data, MAX_TOK_LEN)
+        tokenized_inputs_arr, tokenized_inputs_arr_with_id = tokenize_data(tokenizer, data, MAX_TOK_LEN)
         ans_tokenized_inputs_arr = parse_answers(data, tokenizer) # array of the tokenized answer data
         tokenized_inputs_arr = add_answers_to_tokenized_data(tokenized_inputs_arr, ans_tokenized_inputs_arr, tokenizer)
+        tokenized_inputs_arr_with_id = add_answers_to_tokenized_data(tokenized_inputs_arr_with_id, ans_tokenized_inputs_arr, tokenizer)
     else:
         if args.CRA:
             num_added_toks = tokenizer.add_tokens(CRA_TOKENS)
             print('Added ', num_added_toks, 'tokens')
-        tokenized_inputs_arr = tokenize_data(tokenizer, data)
+        tokenized_inputs_arr, tokenized_inputs_arr_with_id = tokenize_data(tokenizer, data)
     
     # save the train and eval data
     print('Data size: ', len(tokenized_inputs_arr))
-    with open(args.output_path, "wb") as output_file:
+    model_data_path = args.output_path + '.pkl'
+    eval_data_path = args.output_path + '_with_id.pkl'
+    with open(model_data_path, "wb") as output_file:
         pickle.dump(tokenized_inputs_arr, output_file)
+
+    with open(eval_data_path, "wb") as output_file:
+        pickle.dump(tokenized_inputs_arr_with_id, output_file)
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Prepare dataset with labels')

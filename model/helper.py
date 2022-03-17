@@ -45,7 +45,9 @@ class WeightedLossTrainerCA(Trainer):
         # TODO: try with different loss functions!
         # weights are retrieved in the create_CA_dataset.ipynb by weighting the labels inversely by how often they occur
         # INS: [0.51, 72.43, 24.36]
-        loss_fct = nn.CrossEntropyLoss(weight=torch.tensor([0.717, 8.511, 4.936])) # [0.717, 8.511, 4.936]
+        # ISNS [0.717, 8.511, 4.936]
+
+        loss_fct = nn.CrossEntropyLoss(weight=torch.tensor([0.717, 8.511, 4.936]))
         loss = loss_fct(logits.view(-1, self.model.config.num_labels), labels.view(-1))
         return (loss, outputs) if return_outputs else loss
 
@@ -71,7 +73,9 @@ class WeightedLossTrainerCRA(Trainer):
         # compute custom loss
         # TODO: try with different loss functions!
         # weights are retrieved in the create_CA_dataset.ipynb by weighting the labels inversely by how often they occur
-        loss_fct = nn.CrossEntropyLoss(weight=torch.tensor([ 0.50, 321.60, 108.70]))
+        # ISNS weights: [0.71,17.93, 10.43]
+        # INS weights: [ 0.50, 321.60, 108.70]
+        loss_fct = nn.CrossEntropyLoss(weight=torch.tensor([0.71,17.93, 10.43]))
         loss = loss_fct(logits.view(-1, self.model.config.num_labels), labels.view(-1))
         return (loss, outputs) if return_outputs else loss
 

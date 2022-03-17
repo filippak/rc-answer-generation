@@ -58,8 +58,8 @@ def main(args):
     training_args = TrainingArguments(
         output_dir="./results",
         evaluation_strategy="steps", # can be epochs, then add logging_strategy="epoch",
-        eval_steps=2,
-        logging_steps=2,
+        eval_steps=10,
+        logging_steps=10,
         learning_rate=2e-5,
         per_device_train_batch_size=BATCH_SIZE,
         per_device_eval_batch_size=BATCH_SIZE,
