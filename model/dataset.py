@@ -6,6 +6,7 @@ from transformers import AutoModel, AutoTokenizer, DataCollatorForTokenClassific
 import pickle
 import argparse
 import random
+import copy
 
 # https://huggingface.co/transformers/v3.2.0/custom_datasets.html
 # https://huggingface.co/docs/transformers/custom_datasets
@@ -42,7 +43,7 @@ def tokenize_data(tokenizer, data, max_tok_len=512):
         tokenized_input = align_labels_single_context(context, labels, tokenizer, max_tok_len)
         tokenized_inputs_arr.append(tokenized_input)
         # create copy with context id (does not work to train on)
-        tokenized_input_with_id = tokenized_input.copy()
+        tokenized_input_with_id = copy.deepcopy(tokenized_input)
         tokenized_input_with_id['context_id'] = item['context_id'] # set the context id of tokenized data
         tokenized_inputs_arr_with_id.append(tokenized_input_with_id)
 
