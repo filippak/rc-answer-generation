@@ -1,10 +1,10 @@
 # file to load the data, tokenize and update labels accordingly
 import numpy as np
-from transformers import AutoTokenizer, DataCollatorForTokenClassification, AutoModelForTokenClassification, TrainingArguments
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, TrainingArguments
 import torch
 import pickle
 import wandb
-from helper import ContextAnswerDataset, WeightedLossTrainerCA, WeightedLossTrainerCAR, WeightedLossTrainerCRA
+from helper import ContextAnswerDataset, WeightedLossTrainerCARSentClass
 import argparse
 import random
 from datasets import load_metric
@@ -37,51 +37,31 @@ def make_batches(train_data, val_data):
     print('Length of validation data', len(val_data))
     return train_dataset, val_dataset
 
-def compute_metrics(p):
+def compute_metrics(eval_pred):
     metric = load_metric("seqeval")
-    predictions, labels = p
-    predictions = np.argmax(predictions, axis=2)
-
-    # Remove ignored index (special tokens)
-    true_predictions = [
-        [p for (p, l) in zip(prediction, label) if l != -100]
-        for prediction, label in zip(predictions, labels)
-    ]
-    true_labels = [
-        [l for (p, l) in zip(prediction, label) if l != -100]
-        for prediction, label in zip(predictions, labels)
-    ]
-
-    results = metric.compute(predictions=true_predictions, references=true_labels)
-    return {
-        "precision": results["overall_precision"],
-        "recall": results["overall_recall"],
-        "f1": results["overall_f1"],
-        "accuracy": results["overall_accuracy"],
-    }
+    predictions, labels = eval_pred
+    predictions = np.argmax(predictions, axis=1)
+    return metric.compute(predictions=predictions, references=labels)
 
 def main(args):
     wandb.init(project=args.wandb_project, entity="filippak")
     train_data, val_data = load_data(args.data_path)
     # data is already tokenized with tokenizeer in the dataset.py script
     tokenizer = AutoTokenizer.from_pretrained('KB/bert-base-swedish-cased')
-    # model = AutoModel.from_pretrained('KB/bert-base-swedish-cased')
 
-    data_collator = DataCollatorForTokenClassification(tokenizer)
     num_labels = args.num_labels
-    model = AutoModelForTokenClassification.from_pretrained("KB/bert-base-swedish-cased", num_labels=num_labels)
-    if args.CRA:
-        num_added_toks = tokenizer.add_tokens(CRA_TOKENS)
-        print('Added', num_added_toks, 'tokens')
-        model.resize_token_embeddings(len(tokenizer))
+    model = AutoModelForSequenceClassification.from_pretrained("KB/bert-base-swedish-cased", num_labels=num_labels)
+    num_added_toks = tokenizer.add_tokens(CRA_TOKENS)
+    print('Added', num_added_toks, 'tokens')
+    model.resize_token_embeddings(len(tokenizer))
 
     train_data, val_data = make_batches(train_data, val_data)
 
     training_args = TrainingArguments(
         output_dir="./results",
         evaluation_strategy="steps", # can be epochs, then add logging_strategy="epoch",
-        eval_steps=10,
-        logging_steps=10,
+        eval_steps=2,
+        logging_steps=2,
         learning_rate=2e-5,
         per_device_train_batch_size=BATCH_SIZE,
         per_device_eval_batch_size=BATCH_SIZE,
@@ -89,36 +69,14 @@ def main(args):
         weight_decay=0.01,
         report_to="wandb"
     )
-    if args.CAR:
-        trainer = WeightedLossTrainerCAR(
-            model=model,
-            args=training_args,
-            train_dataset=train_data,
-            eval_dataset=val_data,
-            data_collator=data_collator,
-            tokenizer=tokenizer,
-            compute_metrics=compute_metrics,
-        )
-    elif args.CRA:
-        trainer = WeightedLossTrainerCRA(
-            model=model,
-            args=training_args,
-            train_dataset=train_data,
-            eval_dataset=val_data,
-            data_collator=data_collator,
-            tokenizer=tokenizer,
-            compute_metrics=compute_metrics,
-        )
-    else:
-        trainer = WeightedLossTrainerCA(
-            model=model,
-            args=training_args,
-            train_dataset=train_data,
-            eval_dataset=val_data,
-            data_collator=data_collator,
-            tokenizer=tokenizer,
-            compute_metrics=compute_metrics,
-        )
+    trainer = WeightedLossTrainerCARSentClass(
+        model=model,
+        args=training_args,
+        train_dataset=train_data,
+        eval_dataset=val_data,
+        tokenizer=tokenizer,
+        compute_metrics=compute_metrics,
+    )
     print('training model..')
     trainer.train()
     print('finished training model')
@@ -138,17 +96,11 @@ if __name__ == '__main__':
     parser.add_argument('wandb_project', type=str,
         help='wandb project name (can be answer-extraction or sentence-extraction)', action='store')
     parser.add_argument('num_labels', type=int, 
-        help='number of labels', action='store', default=3)
+        help='number of labels', action='store', default=2)
     parser.add_argument('epochs', type=int, 
         help='number of training epochs', action='store', default=3)
-    parser.add_argument('--CAR', dest='CAR', action='store_true')
-    parser.add_argument('--CRA', dest='CRA', action='store_true')
-    parser.add_argument('--seed', dest='seed', type=int, 
-        help='fix random seeds', action='store', default=42)
 
     args = parser.parse_args()
-    random.seed(args.seed)
-    np.random.seed(args.seed)
     main(args)
 
 

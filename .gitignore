@@ -8,6 +8,7 @@ data-analysis/create_dataset/data/
 # model data
 model/data/
 model/evaluation/data
+model/evaluation/figures
 model/results/
 model/wandb/
 

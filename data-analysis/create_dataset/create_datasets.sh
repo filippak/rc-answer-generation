@@ -28,3 +28,12 @@ python create_CRA_dataset.py ./data/labeled_data_train.pkl ./data/CRA/labeled_CR
 
 echo 'creating CR->A dataset for evaluation '
 python create_CRA_dataset.py ./data/labeled_data_eval.pkl ./data/CRA/labeled_CRA_data_eval.pkl
+
+
+echo 'CREATING CA->R SENTENCE CLASSIFICATION DATASET'
+
+echo 'creating CA->R sentence classification dataset for training data'
+python create_CAR_sent_classification_dataset.py ./data/labeled_data_train.pkl ./data/CAR_classification/labeled_CAR_data_train.pkl
+
+echo 'creating CA->R sentence classification dataset for evaluation data'
+python create_CAR_sent_classification_dataset.py ./data/labeled_data_eval.pkl ./data/CAR_classification/labeled_CAR_data_eval.pkl

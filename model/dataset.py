@@ -34,13 +34,13 @@ def load_data(path):
     df = pd.read_pickle(path)
     return df
 
-def tokenize_data(tokenizer, data, max_tok_len=512):
+def tokenize_data(tokenizer, data, max_tok_len=512, CRA_tok_ids=None):
     tokenized_inputs_arr = []
     tokenized_inputs_arr_with_id = []
     for idx, item in data.iterrows():
         context = item['tokens']
         labels = item['labels']
-        tokenized_input = align_labels_single_context(context, labels, tokenizer, max_tok_len)
+        tokenized_input = align_labels_single_context(context, labels, tokenizer, max_tok_len, True, CRA_tok_ids)
         tokenized_inputs_arr.append(tokenized_input)
         # create copy with context id (does not work to train on)
         tokenized_input_with_id = copy.deepcopy(tokenized_input)
@@ -49,22 +49,25 @@ def tokenize_data(tokenizer, data, max_tok_len=512):
 
     return tokenized_inputs_arr, tokenized_inputs_arr_with_id
 
-def align_labels_single_context(context, labels_in, tokenizer, max_tok_len=512, special_tokens=True):
+def align_labels_single_context(context, labels_in, tokenizer, max_tok_len=512, special_tokens=True, CRA_tok_ids=None):
     tokenized_inputs = tokenizer(context, truncation=True, max_length=max_tok_len, is_split_into_words=True, add_special_tokens=special_tokens)
 
     word_ids = tokenized_inputs.word_ids()  # Map tokens to their respective word.
     previous_word_idx = None
     label_ids = []
-    for word_idx in word_ids:  # Set the special tokens to -100.
+    for idx, word_idx in enumerate(word_ids):  # Set the special tokens to -100.
         if word_idx is None:
             label_ids.append(SPECIAL_TOKEN_LABEL)
         elif word_idx != previous_word_idx:  # Only label the first token of a given word.
-            label_ids.append(labels_in[word_idx])
+            word_id = tokenized_inputs['input_ids'][idx] # get the word id of the current word
+            if CRA_tok_ids and word_id in CRA_tok_ids: # if want to set BGN and END to -100 (otherwise 0)
+                label_ids.append(SPECIAL_TOKEN_LABEL)
+            else:
+                label_ids.append(labels_in[word_idx])
         else:
             label_ids.append(SPECIAL_TOKEN_LABEL)
         previous_word_idx = word_idx
     tokenized_inputs["labels"] = label_ids
-    tokens = tokenized_inputs['input_ids']
     return tokenized_inputs
 
 def parse_answers(data, tokenizer):
@@ -106,7 +109,11 @@ def main(args):
         if args.CRA:
             num_added_toks = tokenizer.add_tokens(CRA_TOKENS)
             print('Added ', num_added_toks, 'tokens')
-        tokenized_inputs_arr, tokenized_inputs_arr_with_id = tokenize_data(tokenizer, data)
+            if args.CRA_tok_ignore:
+                special_token_ids = tokenizer.convert_tokens_to_ids(CRA_TOKENS)
+                tokenized_inputs_arr, tokenized_inputs_arr_with_id = tokenize_data(tokenizer, data, 512, special_token_ids)
+        else:
+            tokenized_inputs_arr, tokenized_inputs_arr_with_id = tokenize_data(tokenizer, data)
     
     # save the train and eval data
     print('Data size: ', len(tokenized_inputs_arr))
@@ -128,6 +135,7 @@ if __name__ == '__main__':
         help='path to output file where the parsed data will be stored', action='store')
     parser.add_argument('--answers', dest='parse_answers', action='store_true')
     parser.add_argument('--CRA', dest='CRA', action='store_true')
+    parser.add_argument('--CRA_tok_ignore', dest='CRA_tok_ignore', action='store_true')
     parser.add_argument('--seed', dest='seed', type=int, 
         help='fix random seeds', action='store', default=42)
 

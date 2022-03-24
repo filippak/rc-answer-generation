@@ -34,5 +34,21 @@ echo 'embeddings evaluation data..'
 # Embeddings for C,R -> A token classifier, evaluation data
 python dataset.py ../data-analysis/create_dataset/data/CRA/labeled_CRA_data_eval.pkl ./data/CRA/tokenized_CRA_data_eval --CRA
 
-# Embeddings for C -> R token classifier, training data (TEST!!!)
-# python dataset.py ../data-analysis/create_dataset/data/labeled_sentence_extraction_training_data.pkl ./data/tokenized_CR_data
+echo 'embeddings training data, with BGN and END set to -100'
+# Embeddings for C,R -> A token classifier, training data
+python dataset.py ../data-analysis/create_dataset/data/CRA/labeled_CRA_data_train.pkl ./data/CRA/tokenized_CRA_data_BGN_END_as_special_train --CRA --CRA_tok_ignore
+
+echo 'embeddings evaluation data, with BGN and END set to -100'
+# Embeddings for C,R -> A token classifier, evaluation data
+python dataset.py ../data-analysis/create_dataset/data/CRA/labeled_CRA_data_eval.pkl ./data/CRA/tokenized_CRA_data_BGN_END_as_special_eval --CRA --CRA_tok_ignore
+
+
+echo 'CREATING CA -> R SENTENCE CLASSIFICATION EMBEDDINGS'
+
+echo 'embeddings training data..'
+# Embeddings for C,A -> R token classifier, training data
+python dataset_sent_classification.py ../data-analysis/create_dataset/data/CAR_classification/labeled_CAR_data_train.pkl ./data/CAR_classification/tokenized_CAR_class_data_train
+
+echo 'embeddings evaluation data..'
+# Embeddings for C,A -> R token classifier, evaluation data
+python dataset_sent_classification.py ../data-analysis/create_dataset/data/CAR_classification/labeled_CAR_data_eval.pkl ./data/CAR_classification/tokenized_CAR_class_data_eval

@@ -8,24 +8,29 @@ import random
 from transformers import AutoTokenizer
 import torch
 import torch.nn as nn
+from sklearn.metrics import confusion_matrix
 
 CRA_TOKENS =  ['[BGN]', '[END]']
 
-def get_token_segments(labels):
+def get_token_segments(labels, word_ids):
     """
     Function to extract correctly formatted answers
     
     Input: array of labels (can be predicted labels, or true labels)
     Output: array of tuples; (start index of answer, length of answer)
     """
+    prev_word_id = None
     labels_stats = []
     for idx, label in enumerate(labels):
-        if label == 1:
+        if label == 1 and word_ids[idx] != prev_word_id:
             count = 1
+            prev_word_id = word_ids[idx]
             while idx+count < len(labels):
                 next_label = labels[idx+count]
-                if next_label != 2:
+                if next_label == 0:
                     break
+                if next_label == 1 and word_ids[idx+count] != prev_word_id:
+                    break 
                 count += 1
             labels_stats.append((idx, count))
     return labels_stats
@@ -44,27 +49,26 @@ def correct_word_piece_tokens(tokenized_inputs, labels_in):
     previous_word_idx = None
     previous_word_label = None
     label_ids = []
-    for idx, word_idx in enumerate(word_ids):  # Set the special tokens to -100.
+    for idx, word_idx in enumerate(word_ids):
         if word_idx is None:
             label_ids.append(0) # label CLS, SEP as 0..
             previous_word_label = 0
         elif word_idx != previous_word_idx: 
-            label_ids.append(labels_in[idx])
-            previous_word_label = labels_in[idx]
-        else:
-            # this token belongs to the same word as the previous 
-            # -> must have label 2 if prev is 1 or 2, and 0 otherwise
-            if previous_word_label > 0:
-                label_ids.append(2)
-                previous_word_label = 2
-            else:
+            if labels_in[idx] <= 0: # [BGN] and [END] can be labeled -100, but should in eval be equal to 0..
                 label_ids.append(0)
                 previous_word_label = 0
+            else:
+                label_ids.append(labels_in[idx])
+                previous_word_label = labels_in[idx]
+        else:
+            # this token belongs to the same word as the previous 
+            # -> must have label that match the previous label 
+            label_ids.append(previous_word_label)
         previous_word_idx = word_idx
     
     return label_ids
 
-def prediction_output_modified(output):
+def prediction_output_partial(output):
     """
     Function that given the predicted labels, updates the labels to fit intended data output format.
     Specifically, corrects predicted answer spans that start with a 2, to instead start with a 1
@@ -102,6 +106,24 @@ def prediction_output_strict(output):
             prev_label = label
     return corrected_output
 
+def confusion_matrix_tokens(labels, predicted, title):
+    """
+    Function that given labels and predictions computes and plots normalized (by rows) confusion matrix
+    """
+    # Inspiration from: https://vitalflux.com/python-draw-confusion-matrix-matplotlib/
+    c_mat = confusion_matrix(labels, predicted, normalize='true')
+    fig, ax = plt.subplots(figsize=(7.5, 7.5))
+    ax.matshow(c_mat, cmap=plt.cm.Greens, alpha=0.5)
+    for i in range(c_mat.shape[0]):
+        for j in range(c_mat.shape[1]):
+            val = "{0:.2f}".format(c_mat[i, j])
+            ax.text(x=j, y=i,s=val, va='center', ha='center', size='xx-large')
+    
+    ax.set_xlabel('Predicted label')    
+    ax.xaxis.set_label_position('top') 
+    plt.ylabel('True label')
+    plt.title(title)
+    plt.show()
 
 
 def evaluate_model_tokens(labels, predicted):
@@ -113,7 +135,9 @@ def evaluate_model_tokens(labels, predicted):
     """
     stats = {'FP': 0, 'TP': 0, 'FN': 0}
     for idx, label in enumerate(labels):
-        if label > 0 and predicted[idx] > 0:
+        if label == 1 and predicted[idx] == 1:
+            stats['TP'] += 1
+        if label == 2 and predicted[idx] == 2:
             stats['TP'] += 1
         elif label > 0:
             stats['FP'] += 1
@@ -151,7 +175,7 @@ def get_jaccard_score(a, s):
     return jacc
 
 
-def evaluate_model_answer_spans(true_labels, output_labels):
+def evaluate_model_answer_spans(true_labels, output_labels, word_ids):
     """
     Function that evaluates overlap between true labels and predicted output on an answer level
     An output segment is considered a match if it overlaps with a segment in the true labels
@@ -160,8 +184,8 @@ def evaluate_model_answer_spans(true_labels, output_labels):
     Output: Statistics of comparison between true labels and predictions
     """
     stats = {'FP': 0, 'TP': 0, 'FN': 0, 'jaccard': [], 'overlap': []}
-    label_segments = get_token_segments(true_labels)
-    predicted_segments = get_token_segments(output_labels)
+    label_segments = get_token_segments(true_labels, word_ids)
+    predicted_segments = get_token_segments(output_labels, word_ids)
     num_answers = len(label_segments)
 
     label_dict = get_correct_answer_dict(label_segments)
@@ -244,22 +268,27 @@ def get_model_predictions(data, model):
     out = torch.argmax(max, dim=2)
     return out[0]
 
-def evaluate_model(model, tokenizer, data, use_strict):
+def evaluate_model(model, tokenizer, data, use_strict, model_name):
     """
     function to evaluate model on given data
     
     Input: 
     - model to use for prediction
-    - t
+    - tokenizer
+    - data: the data to get predictions for
+    - use_strict: flag indicating if evaluating strict
     Output: predictions for input data (array of tensors on size 1)
     """
     answer_stats = {'FP': 0, 'TP': 0, 'FN': 0, 'jaccard': [], 'overlap': []}
     token_stats = {'FP': 0, 'TP': 0, 'FN': 0}
+    y_labels = []
+    y_preds = []
     for i in range(len(data)):
         out = get_model_predictions(data[i], model)
 
         tokens = tokenizer.convert_ids_to_tokens(data[i]["input_ids"]) # to use if printing results..
         true_labels = correct_word_piece_tokens(data[i], data[i]['labels']) # replace the -100 labels used in training..
+        y_labels += true_labels
         data[i]['true_labels'] = true_labels
         # print_extracted_answers(true_labels, tokens)
 
@@ -267,12 +296,14 @@ def evaluate_model(model, tokenizer, data, use_strict):
         if use_strict:
             output_labels = prediction_output_strict(output_labels)
         else:
-            output_labels = prediction_output_modified(output_labels)
+            output_labels = prediction_output_partial(output_labels)
         
         # set the output labels to the data point
         data[i]['predicted_labels'] = output_labels
+        y_preds += output_labels
 
-        item_stats = evaluate_model_answer_spans(true_labels, output_labels)
+        word_ids = word_ids = data[i].word_ids()
+        item_stats = evaluate_model_answer_spans(true_labels, output_labels, word_ids)
         answer_stats['FP'] += item_stats['FP']
         answer_stats['TP'] += item_stats['TP']
         answer_stats['FN'] += item_stats['FN']
@@ -300,6 +331,14 @@ def evaluate_model(model, tokenizer, data, use_strict):
     print('F1-score, answers: {:.2f}'.format(f1))
     print('Mean Jaccard score: {:.2f}'.format(np.mean(np.ravel(answer_stats['jaccard']))))
     print('Mean answer length diff (predicted - true): {:.2f}'.format(np.mean(np.ravel(answer_stats['overlap']))))
+    
+    # plot the confusion matrix on token level
+    title = 'Token classification results for model trained with {} weights. '.format(model_name)
+    if use_strict:
+        title += 'Strict evaluation.'
+    else:
+        title += 'Partial evaluation.'
+    confusion_matrix_tokens(y_labels, y_preds, title)
 
 
 
@@ -314,7 +353,7 @@ def main(args):
     with open(args.data_path, "rb") as input_file:
         validation_data = pickle.load(input_file)
     
-    evaluate_model(model, tokenizer, validation_data, args.strict)
+    evaluate_model(model, tokenizer, validation_data, args.strict, args.model_name)
 
     # save the outputs for the validation data. to use for comparison between CA and CRA model outputs
     with open(args.output_path, "wb") as output_file:
@@ -330,6 +369,8 @@ if __name__ == '__main__':
         help='path to data file', action='store')
     parser.add_argument('output_path', type=str, 
         help='path to output file', action='store')
+    parser.add_argument('model_name', type=str, 
+        help='name of model that is being evaluated', action='store')
     parser.add_argument('--strict', dest='strict', action='store_true')
     parser.add_argument('--CRA', dest='CRA', action='store_true')
     parser.add_argument('--seed', dest='seed', type=int, 
