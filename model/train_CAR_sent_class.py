@@ -37,6 +37,7 @@ def make_batches(train_data, val_data):
     print('Length of validation data', len(val_data))
     return train_dataset, val_dataset
 
+# TODO: fix this! not working currently..
 def compute_metrics(eval_pred):
     metric = load_metric("seqeval")
     predictions, labels = eval_pred
@@ -46,10 +47,20 @@ def compute_metrics(eval_pred):
 def main(args):
     wandb.init(project=args.wandb_project, entity="filippak")
     train_data, val_data = load_data(args.data_path)
+    
+    # TODO: train with all data..
+    random.shuffle(train_data)
+    random.shuffle(val_data)
+    train_data = train_data[:5000]
+    val_data = val_data[:100]
     # data is already tokenized with tokenizeer in the dataset.py script
     tokenizer = AutoTokenizer.from_pretrained('KB/bert-base-swedish-cased')
-
     num_labels = args.num_labels
+
+    # Linear layer on top of pooled output (= the output for the [CLS] token?)
+    # Implementation details in: 
+    # https://github.com/huggingface/transformers/blob/v4.17.0/src/transformers/models/bert/modeling_bert.py
+    # row 1501 -> 
     model = AutoModelForSequenceClassification.from_pretrained("KB/bert-base-swedish-cased", num_labels=num_labels)
     num_added_toks = tokenizer.add_tokens(CRA_TOKENS)
     print('Added', num_added_toks, 'tokens')
@@ -60,8 +71,8 @@ def main(args):
     training_args = TrainingArguments(
         output_dir="./results",
         evaluation_strategy="steps", # can be epochs, then add logging_strategy="epoch",
-        eval_steps=2,
-        logging_steps=2,
+        eval_steps=50,
+        logging_steps=50,
         learning_rate=2e-5,
         per_device_train_batch_size=BATCH_SIZE,
         per_device_eval_batch_size=BATCH_SIZE,
@@ -75,7 +86,7 @@ def main(args):
         train_dataset=train_data,
         eval_dataset=val_data,
         tokenizer=tokenizer,
-        compute_metrics=compute_metrics,
+        # compute_metrics=compute_metrics,
     )
     print('training model..')
     trainer.train()

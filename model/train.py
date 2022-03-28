@@ -69,6 +69,11 @@ def main(args):
 
     data_collator = DataCollatorForTokenClassification(tokenizer)
     num_labels = args.num_labels
+
+     # Linear layer on top of the hidden states output
+    # Implementation details in: 
+    # https://github.com/huggingface/transformers/blob/v4.17.0/src/transformers/models/bert/modeling_bert.py
+    # row 1693 -> 
     model = AutoModelForTokenClassification.from_pretrained("KB/bert-base-swedish-cased", num_labels=num_labels)
     if args.CRA:
         num_added_toks = tokenizer.add_tokens(CRA_TOKENS)
