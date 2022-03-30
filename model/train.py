@@ -65,7 +65,6 @@ def main(args):
     train_data, val_data = load_data(args.data_path)
     # data is already tokenized with tokenizeer in the dataset.py script
     tokenizer = AutoTokenizer.from_pretrained('KB/bert-base-swedish-cased')
-    # model = AutoModel.from_pretrained('KB/bert-base-swedish-cased')
 
     data_collator = DataCollatorForTokenClassification(tokenizer)
     num_labels = args.num_labels
@@ -92,7 +91,8 @@ def main(args):
         per_device_eval_batch_size=BATCH_SIZE,
         num_train_epochs=args.epochs,
         weight_decay=0.01,
-        report_to="wandb"
+        report_to="wandb",
+        load_best_model_at_end=True
     )
     if args.CAR:
         trainer = WeightedLossTrainerCAR(

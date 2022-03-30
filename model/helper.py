@@ -34,34 +34,32 @@ class ContextAnswerDataset(Dataset):
 
 # Make a custom trainer to use a weighted loss
 # https://huggingface.co/docs/transformers/main_classes/trainer#:%7E:text=passed%20at%20init.-,compute_loss,-%2D%20Computes%20the%20loss
+ # weights are calculated in the create_CA_dataset.ipynb
 
 class WeightedLossTrainerCA(Trainer):
     def compute_loss(self, model, inputs, return_outputs=False):
         labels = inputs.get("labels")
-        # forward pass
         outputs = model(**inputs)
         logits = outputs.get("logits")
-        # compute custom loss
-        # TODO: try with different loss functions!
-        # weights are retrieved in the create_CA_dataset.ipynb by weighting the labels inversely by how often they occur
+
         # INS: [0.51, 72.43, 24.36]
         # ISNS [0.717, 8.511, 4.936]
+        # INS15  [0.64, 17.38, 8.40]
+        # TODO: INS125 [0.58, 30.76, 12.86]
 
-        loss_fct = nn.CrossEntropyLoss(weight=torch.tensor([0.51, 72.43, 24.36]))
+        loss_fct = nn.CrossEntropyLoss(weight=torch.tensor([0.64, 17.38, 8.40]))
         loss = loss_fct(logits.view(-1, self.model.config.num_labels), labels.view(-1))
         return (loss, outputs) if return_outputs else loss
 
 class WeightedLossTrainerCAR(Trainer):
     def compute_loss(self, model, inputs, return_outputs=False):
         labels = inputs.get("labels")
-        # forward pass
         outputs = model(**inputs)
         logits = outputs.get("logits")
-        # compute custom loss
-        # TODO: try with different loss functions!
-        # weights are retrieved in the create_CA_dataset.ipynb by weighting the labels inversely by how often they occur
+
         # ISNS weights: [0.74, 10.49, 2.54]
         # INS weights: [0.54, 110.06, 6.45]
+
         loss_fct = nn.CrossEntropyLoss(weight=torch.tensor([0.74, 10.49, 2.54]))
         loss = loss_fct(logits.view(-1, self.model.config.num_labels), labels.view(-1))
         return (loss, outputs) if return_outputs else loss
@@ -69,29 +67,28 @@ class WeightedLossTrainerCAR(Trainer):
 class WeightedLossTrainerCRA(Trainer):
     def compute_loss(self, model, inputs, return_outputs=False):
         labels = inputs.get("labels")
-        # forward pass
         outputs = model(**inputs)
         logits = outputs.get("logits")
-        # compute custom loss
-        # TODO: try with different loss functions!
-        # weights are retrieved in the create_CA_dataset.ipynb by weighting the labels inversely by how often they occur
-        # ISNS weights: [0.71,17.93, 10.43]
-        # INS weights: [ 0.50, 321.60, 108.70]
-        loss_fct = nn.CrossEntropyLoss(weight=torch.tensor([0.71, 17.93, 10.43]))
+        
+        # ISNS weights: [0.71, 17.93, 10.43]
+        # INS weights: [ 0.50, 289.27, 98.10]
+        # INS15 [0.63, 43.71, 21.27]
+        # TODO: INS175 [0.67, 25.50, 13.74]
+        loss_fct = nn.CrossEntropyLoss(weight=torch.tensor([0.63, 43.71, 21.27]))
         loss = loss_fct(logits.view(-1, self.model.config.num_labels), labels.view(-1))
         return (loss, outputs) if return_outputs else loss
 
 class WeightedLossTrainerCARSentClass(Trainer):
     def compute_loss(self, model, inputs, return_outputs=False):
         labels = inputs.get("labels")
-        # forward pass
         outputs = model(**inputs)
         logits = outputs.get("logits")
-        # compute custom loss
-        # ISNS: [0.5, 6] - too many 1's
-        # Manual Weights: [0.5, 2] - too many 0's
-        # ISNS:  [0.455, 1.545] - too many 0's
-        loss_fct = nn.CrossEntropyLoss(weight=torch.tensor([0.455, 1.545])) 
+
+        # INS: [0.54, 6.27] - too many 1's
+        # ISNS:  [0.74, 2.50] - too many 0's
+        # INS15 [0.66, 3.40]
+
+        loss_fct = nn.CrossEntropyLoss(weight=torch.tensor([0.66, 3.40])) 
         loss = loss_fct(logits.view(-1, self.model.config.num_labels), labels.view(-1))
         return (loss, outputs) if return_outputs else loss
 

@@ -122,7 +122,7 @@ def confusion_matrix_tokens(labels, predicted, title):
     ax.set_xlabel('Predicted label')    
     ax.xaxis.set_label_position('top') 
     plt.ylabel('True label')
-    plt.title(title)
+    plt.title(title, fontsize=18)
     plt.show()
 
 
@@ -333,11 +333,16 @@ def evaluate_model(model, tokenizer, data, use_strict, model_name):
     print('Mean answer length diff (predicted - true): {:.2f}'.format(np.mean(np.ravel(answer_stats['overlap']))))
     
     # plot the confusion matrix on token level
-    title = 'Token classification results for model trained with {} weights. '.format(model_name)
+    title = ''
     if use_strict:
-        title += 'Strict evaluation.'
+        title += 'Strict evaluation of '
     else:
-        title += 'Partial evaluation.'
+        title += 'Partial evaluation of'
+    if args.CRA:
+        title += 'CR-A '
+    else:
+        title += 'C-A '
+    title += 'model trained with {} weights. '.format(model_name)
     confusion_matrix_tokens(y_labels, y_preds, title)
 
 
@@ -352,7 +357,7 @@ def main(args):
 
     with open(args.data_path, "rb") as input_file:
         validation_data = pickle.load(input_file)
-    
+    validation_data = validation_data[:10]
     evaluate_model(model, tokenizer, validation_data, args.strict, args.model_name)
 
     # save the outputs for the validation data. to use for comparison between CA and CRA model outputs

@@ -1,10 +1,16 @@
 echo 'RUNNING EVALUATION ON C, R -> A MODEL'
 
+echo 'evaluation of C, R -> A model, trained with INS^(1.5) weighted loss. '
+python eval.py ../results/CRA/model_CRA_3e_INS15.pkl ../data/CRA/tokenized_CRA_data_eval_with_id.pkl ./data/CRA/tokenized_output_data_CRA_INS15.pkl INS15 --CRA
+
+echo 'STRICT evaluation of C, R -> A model, trained with INS^(1.5) weighted loss. '
+python eval.py ../results/CRA/model_CRA_3e_INS15.pkl ../data/CRA/tokenized_CRA_data_eval_with_id.pkl ./data/CRA/tokenized_output_data_CRA_INS15_strict.pkl INS15 --strict --CRA
+
 echo 'evaluation of C, R -> A model, trained with INS weighted loss. '
-python eval.py ../results/model_CRA_3e_weighted_loss.pkl ../data/CRA/tokenized_CRA_data_eval_with_id.pkl ./data/CRA/tokenized_output_data_CRA_INS.pkl INS --CRA
+python eval.py ../results/CRA/model_CRA_3e_INS_weighted_loss.pkl ../data/CRA/tokenized_CRA_data_eval_with_id.pkl ./data/CRA/tokenized_output_data_CRA_INS.pkl INS --CRA
 
 echo 'STRICT evaluation of C, R -> A model, trained with INS weighted loss. '
-python eval.py ../results/model_CRA_3e_weighted_loss.pkl ../data/CRA/tokenized_CRA_data_eval_with_id.pkl ./data/CRA/tokenized_output_data_CRA_INS_strict.pkl INS --strict --CRA
+python eval.py ../results/CRA/model_CRA_3e_INS_weighted_loss.pkl ../data/CRA/tokenized_CRA_data_eval_with_id.pkl ./data/CRA/tokenized_output_data_CRA_INS_strict.pkl INS --strict --CRA
 
 echo 'evaluation of C, R -> A model, trained with ISNS weighted loss. '
 python eval.py ../results/CRA/model_CRA_3e_ISNS_weighted_loss.pkl ../data/CRA/tokenized_CRA_data_eval_with_id.pkl ./data/CRA/tokenized_output_data_CRA_ISNS.pkl ISNS --CRA

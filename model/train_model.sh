@@ -19,5 +19,8 @@ python train.py ./data/CRA/tokenized_CRA_data ./results/CRA/model_CRA_3e_ISNS_we
 # Train the C,R -> A classifier, with ISNS weights, with labels of BGN and END tokens set to -100
 python train.py ./data/CRA/tokenized_CRA_data_BGN_END_as_special ./results/CRA/model_CRA_3e_ISNS_BGN_END_as_special.pkl answer-extraction-2 3 3 --CRA 
 
-echo 'Training the C,A -> R sentence classifier..'
-python train_CAR_sent_class.py ./data/CAR_classification/tokenized_CAR_class_data ./results/CAR_classification/model_CAR_CLASS_3e_ISNS_5000.pkl sentence-classification 2 3
+echo 'Training the C,A -> R sentence classifier and saving the data..'
+python train_CAR_sent_class.py ./data/CAR_classification/tokenized_CAR_class_data ./results/CAR_classification/model_CAR_CLASS_3e_ISNS_5000.pkl sentence-classification 2 3 --save --num_train=2000 --num_val=400 --save_path=./data/CAR_classification/data_subset/CAR_class_data
+
+echo 'Training the C,A -> R sentence classifier with subset of data'
+python train_CAR_sent_class.py ./data/CAR_classification/data_subset/CAR_class_data ./results/CAR_classification/model_CAR_CLASS_3e_ISNS_5000.pkl sentence-classification 2 3

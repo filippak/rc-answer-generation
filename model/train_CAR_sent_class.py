@@ -47,12 +47,22 @@ def compute_metrics(eval_pred):
 def main(args):
     wandb.init(project=args.wandb_project, entity="filippak")
     train_data, val_data = load_data(args.data_path)
+     # TODO: train with all data..
     
-    # TODO: train with all data..
-    random.shuffle(train_data)
-    random.shuffle(val_data)
-    train_data = train_data[:5000]
-    val_data = val_data[:100]
+    if args.save_data:
+        random.shuffle(train_data)
+        random.shuffle(val_data)
+        train_data = train_data[:args.num_train]
+        val_data = val_data[:args.num_val]
+        train_path = args.save_path + '_train.pkl'
+        eval_path = args.save_path + '_eval.pkl'
+        with open(train_path, "wb") as output_file:
+            pickle.dump(train_data, output_file)
+        with open(eval_path, "wb") as output_file:
+            pickle.dump(val_data, output_file)
+    else:
+        print('Length of training data: ', len(train_data))
+        print('Length of validation data: ', len(val_data))
     # data is already tokenized with tokenizeer in the dataset.py script
     tokenizer = AutoTokenizer.from_pretrained('KB/bert-base-swedish-cased')
     num_labels = args.num_labels
@@ -71,14 +81,15 @@ def main(args):
     training_args = TrainingArguments(
         output_dir="./results",
         evaluation_strategy="steps", # can be epochs, then add logging_strategy="epoch",
-        eval_steps=50,
-        logging_steps=50,
+        eval_steps=20,
+        logging_steps=20,
         learning_rate=2e-5,
         per_device_train_batch_size=BATCH_SIZE,
         per_device_eval_batch_size=BATCH_SIZE,
         num_train_epochs=args.epochs,
         weight_decay=0.01,
-        report_to="wandb"
+        report_to="wandb",
+        load_best_model_at_end=True
     )
     trainer = WeightedLossTrainerCARSentClass(
         model=model,
@@ -110,6 +121,10 @@ if __name__ == '__main__':
         help='number of labels', action='store', default=2)
     parser.add_argument('epochs', type=int, 
         help='number of training epochs', action='store', default=3)
+    parser.add_argument('--save', dest='save_data', action='store_true')
+    parser.add_argument('--num_train', type=int, dest='num_train', action='store', default=2000)
+    parser.add_argument('--num_val', type=int, dest='num_val', action='store', default=400)
+    parser.add_argument('--save_path', dest='save_path', action='store')
 
     args = parser.parse_args()
     main(args)

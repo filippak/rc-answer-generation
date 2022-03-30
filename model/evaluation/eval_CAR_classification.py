@@ -64,7 +64,7 @@ def evaluate_model(model, tokenizer, data, model_name):
     
     
     # plot the confusion matrix on token level
-    title = 'Token classification results for model trained with {} weights. '.format(model_name)
+    title = 'CA-R model trained with {} weights. '.format(model_name)
     confusion_matrix_tokens(y_labels, y_preds, title)
 
 

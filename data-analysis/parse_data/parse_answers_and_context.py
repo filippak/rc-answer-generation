@@ -132,6 +132,7 @@ def get_correct_answers(df, stop_words):
 def filter_out_reformulated(df):
     # Filter out all the rows where the answer is reformulated!!
     # This is, all the rows where 'answer_reformulation' in not False
+    print('number of original questions: ', len(df))
     df = df[df['answer_reformulation'] == False]
     print('Number of remaining, after removing those with reformulation: ', len(df))
     return df

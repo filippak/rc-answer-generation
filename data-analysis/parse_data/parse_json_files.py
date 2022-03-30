@@ -6,14 +6,15 @@ import argparse
 
 def main(args):
     df = pd.read_json(codecs.open(args.data_path_1, 'r', 'utf-8'), orient='split')
+    print('SweQUAD-MC num data points: ', len(df))
     if not args.single_file:
         df_2 = pd.read_json(codecs.open(args.data_path_2, 'r', 'utf-8'), orient='split')
-
+        print('Additional num data points: ', len(df_2))
         # merge the two datasets to use: 
         dfs = [df, df_2]
         df = pd.concat(dfs)
-        print(len(df))
-
+    
+    print('Total num data points',len(df))
     # save dataframe
     df.to_pickle(args.output_path)
 
