@@ -14,3 +14,17 @@ Multiple different analysis are done on the data. To not have to re-run the data
     1. `text_rank.ipynb`
     1. `word_overlap.ipynb`
     1. `interrogative_words.ipynb`  
+
+
+## Docker
+To train model with docker do:
+
+1. `cd dockerProject`
+1. `docker build . -t rc_answer_extraction`
+    1. This will build a docker image with the necessary dependencies to run the training on CPU
+1. `nvidia-docker run --rm -e NVIDIA_VISIBLE_DEVICES=0 -v "$(pwd):/workspace" -v "$HOME/dockerProject/results:/workspace/results" rc_answer_extraction sh train_model.sh`
+    1. This will run the scripts specified in `train_model.sh` in the docker container on 1 GPU (0)
+    1. `$HOME` has to be modified to fit the paths on the current system
+    1. Optionally add argument `-d` to run the container in detached mode
+    1. TODO: connect ports to use wandb.
+

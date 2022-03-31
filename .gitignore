@@ -1,3 +1,7 @@
+# docker project data files (copy)
+dockerProject/data
+dockerProject/results
+
 # dataset data
 data/dataset-2022-03-09/
 data/data_cleaned
