@@ -10,8 +10,12 @@ def main(args):
     if not args.single_file:
         df_2 = pd.read_json(codecs.open(args.data_path_2, 'r', 'utf-8'), orient='split')
         print('Additional num data points: ', len(df_2))
-        # merge the two datasets to use: 
-        dfs = [df, df_2]
+
+        df_3 = pd.read_json(codecs.open(args.data_path_3, 'r', 'utf-8'), orient='split')
+        print('SweQUAD-MC num datapoints: ', len(df_3))
+
+        # merge the datasets to use: 
+        dfs = [df, df_2, df_3]
         df = pd.concat(dfs)
     
     print('Total num data points',len(df))
@@ -28,6 +32,8 @@ if __name__ == '__main__':
         help='path to first json file', action='store')
     parser.add_argument('data_path_2', type=str, 
         help='path to second json file', action='store')
+    parser.add_argument('data_path_3', type=str, 
+        help='path to SweQUAD-MC development set json file', action='store')
     parser.add_argument('output_path', type=str, 
         help='path to output file where the parsed data will be stored', action='store')
     parser.add_argument('--single', dest='single_file', action='store_true')

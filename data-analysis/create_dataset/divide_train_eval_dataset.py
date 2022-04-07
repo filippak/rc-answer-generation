@@ -8,6 +8,7 @@ def create_context_to_id_map(df, df_sent):
     c_context_id = 0
     context_ids = []
     relevant_sentence_ids_arr = []
+    df = df.reset_index()
     for index, row in df.iterrows():
         # add the relevant sentences to the main df
         relevant_sentence_ids = df_sent.iloc[index]['ranked_matching_sentence_ids']
@@ -68,8 +69,11 @@ def main(args):
     print(len(df_val))
 
     # save dataframes
-    df_train.to_pickle(args.output_path+'_train.pkl')
-    df_val.to_pickle(args.output_path+'_eval.pkl')
+    if args.is_test:
+        df.to_pickle(args.output_path+'_test.pkl')
+    else:
+        df_train.to_pickle(args.output_path+'_train.pkl')
+        df_val.to_pickle(args.output_path+'_eval.pkl')
 
 
 
@@ -83,6 +87,8 @@ if __name__ == '__main__':
         help='path to sentence data file', action='store')
     parser.add_argument('output_path', type=str,
         help='path to output file where the parsed data will be stored', action='store')
+    parser.add_argument('--test', dest='is_test',
+        help='indicate if test set', action='store_true')
     parser.add_argument('--seed', dest='seed', type=int, 
         help='fix random seeds', action='store', default=42)
 

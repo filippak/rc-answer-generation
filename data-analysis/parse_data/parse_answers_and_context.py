@@ -40,14 +40,15 @@ def make_sentences_from_tokens(doc, stop_words):
             # add the raw tokenized sentence (to be used by BERT)
             current_raw_tok_sentence.append(word.text)
             # only add if character is letter or number (removes , . ? ! etc.)
-            w  = re.sub('[^\sa-zåäöA-ZÅÄÖ0-9-,]', '', word.text)
+            w  = re.sub('[^\sa-zåäöA-ZÅÄÖ0-9-]', '', word.text)
+            l = word.lemma
             if len(w) > 0:
-                current_sentence.append(w)
+                current_sentence.append(w.lower())
                 current_tok_sentence.append(w.lower())
-                current_tok_lemma_sentence.append(word.lemma)
+                current_tok_lemma_sentence.append(l.lower())
                 if not word.text in stop_words:
                     current_tok_stop_sentence.append(w.lower())
-                    current_tok_lemma_stop_sentence.append(word.lemma)
+                    current_tok_lemma_stop_sentence.append(l.lower())
         
         sent = ' '.join(current_sentence)
         raw_tok_sentences.append(current_raw_tok_sentence)
@@ -234,6 +235,7 @@ def main(args):
 
 
     # save dataframe
+    df = df.reset_index() # reset index so that its indexed from 0 to max
     df.to_pickle(args.output_path)
 
 

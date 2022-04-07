@@ -146,10 +146,8 @@ def rank_sentences_add_to_df(df, df_tf_idf):
 def main(args):
     df = pd.read_pickle(args.data_path)
     df_dp = pd.read_pickle(args.dp_data_path)
+    df_tf_idf_lemma_stop = pd.read_pickle(args.tf_idf_data_path)
 
-     # load the tf-idf dataframe
-    df_tf_idf_lemma_stop = pd.read_pickle("../data_frames/tf-idf/df_tf_idf_lemma_stop.pkl")
-    df_tf_idf_lemma_stop_sv_corpus = pd.read_pickle("../data_frames/tf-idf/df_tf_idf_lemma_stop_sv_corpus.pkl")
 
     # word overlap 
     relevant_sentences_word = collect_relevant_sentences(df, df_dp, False, False)
@@ -188,6 +186,8 @@ if __name__ == '__main__':
         help='path to first json file', action='store')
     parser.add_argument('dp_data_path', type=str, 
         help='path to second json file', action='store')
+    parser.add_argument('tf_idf_data_path', type=str, 
+        help='path to tf_idf file', action='store')
     parser.add_argument('output_path', type=str, 
         help='path to output file where the parsed data will be stored', action='store')
 

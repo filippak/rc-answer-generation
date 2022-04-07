@@ -52,6 +52,7 @@ def get_tokens_and_labels(sentences, answer, sent_with_ans_id):
 def label_data(df):
     data_map = {}
     num_removed = 0
+    num_exact_match = 0
     for index, row in df.iterrows():
         sentences = row['context_raw']
         sent_with_ans_id = row['answer_location']
@@ -72,13 +73,17 @@ def label_data(df):
                     elif label != o_labels[idx]:
                         # labels overlap, but are not an exact match
                         # -> don't add the current answer.
+                        if add_answer_label: # only count the first for each answer
+                            num_removed += 1
                         add_answer_label = False # this means the answers are overlapping, but not equal! -> don't want this
-                        num_removed += 1
+                        print('answer: ', answer)
+                        print('existing point: ', old_point)
                     else:
                         # labels match
                         # -> don't add the current answer.
+                        if add_answer_label:
+                            num_exact_match += 1
                         add_answer_label = False
-                        num_removed += 1
             if add_answer_label:
                 old_point['labels'] = o_labels
                 old_point['answers'].append(answer)
@@ -89,6 +94,7 @@ def label_data(df):
             data_map[row['context']] = data_point
     
     print('number of overlapping answers (removed): ', num_removed)
+    print('number of exact matched: ', num_exact_match)
 
     for v in data_map.values():
         v['labels'] = [ int(x) for x in v['labels']]

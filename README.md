@@ -2,19 +2,17 @@
 Master thesis project on automating answer extraction from Swedish text, as a step towards automatign the creation of reading comprehension questions.
 
 ## Data
-The dataset that is used in this project is the SweQUAD-MC dataset described in the paper [BERT-based distractor generation for Swedish reading comprehension questions using a small-scale dataset](https://arxiv.org/abs/2108.03973) with dataset available on [github](https://github.com/dkalpakchi/SweQUAD-MC).
+The dataset that is used in this project is the SweQUAD-MC dataset described in the paper [BERT-based distractor generation for Swedish reading comprehension questions using a small-scale dataset](https://arxiv.org/abs/2108.03973) with dataset available on [github](https://github.com/dkalpakchi/SweQUAD-MC) and additional data collected as part of a master thesis [A Method for Automatic Question Answering in Swedish based on BERT](http://urn.kb.se/resolve?urn=urn:nbn:se:kth:diva-286001)
 
-## Running the scripts
-Multiple different analysis are done on the data. To not have to re-run the data processing steps every time, the scripts save the processed data as pandas dataframes locally. Some scripts need other to have generated data before, and there is therfore an order to run the scripts in.
+## Data pre-processing
+In order to prepare the data for analysis and for training models pre-processing is needed.
+The script `sh parse_data.sh` in `data_analysis/parse_data` runs through the necessary pre-processing steps. The data can then be analyzed or further pre-processed with labels to be used to fine-tune BERT models.  
 
-1. `load-data.ipynb`
-1. `dependency_parsing.ipynb`
-1. order is independent for the following scripts 
-    1. `answer_location_statistics.ipynb`
-    1. `text_rank.ipynb`
-    1. `word_overlap.ipynb`
-    1. `interrogative_words.ipynb`  
+### Data pre-processing for BERT fine-tuning
+TODO
 
+### Data analysis scripts
+TODO
 
 ## Docker
 To train model with docker do:
@@ -22,7 +20,8 @@ To train model with docker do:
 1. `cd dockerProject`
 1. `docker build . -t rc_answer_extraction`
     1. This will build a docker image with the necessary dependencies to run the training on CPU
-1. `nvidia-docker run --rm -e NVIDIA_VISIBLE_DEVICES=0 -v "$(pwd):/workspace" -v "$HOME/dockerProject/results:/workspace/results" rc_answer_extraction sh train_model.sh`
+1. For older versions of nvidia and docker: `nvidia-docker run --rm -e NVIDIA_VISIBLE_DEVICES=0 -v "$(pwd):/workspace" -v "$HOME/dockerProject/results:/workspace/results" rc_answer_extraction sh train_model.sh`
+1. For newer versions of nvidia and docker: `docker run --rm --gpus all -v "$(pwd):/workspace" -v "$HOME/dockerProject/results:/workspace/results" rc_answer_extraction sh train_model.sh`
     1. This will run the scripts specified in `train_model.sh` in the docker container on 1 GPU (0)
     1. `$HOME` has to be modified to fit the paths on the current system
     1. Optionally add argument `-d` to run the container in detached mode

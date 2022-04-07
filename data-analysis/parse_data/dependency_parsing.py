@@ -14,19 +14,20 @@ def parse_doc(doc, stop_words):
     dict = { 'lemmas': [], 'stop_lemmas': [], 'words': [], 'stop_words': [], 'pos': [], 'deprel': [], 'root': None, 'root_word': None, 'root_pos': None,}
     for sentence in doc.sentences:
         for word in sentence.words:
-            # TODO: remove stopwords
-            # print(word.text, word.lemma, word.pos, word.deprel)
-            dict['lemmas'].append(word.lemma)
-            dict['words'].append(word.text)
-            dict['pos'].append(word.pos)
-            dict['deprel'].append(word.deprel)
-            if not word.text in stop_words:
-                dict['stop_lemmas'].append(word.lemma)
-                dict['stop_words'].append(word.text)
-            if word.deprel == 'root':
-                dict['root'] = word.lemma
-                dict['root_word'] = word.text
-                dict['root_pos'] = word.pos
+            w  = re.sub('[^\sa-zåäöA-ZÅÄÖ0-9-]', '', word.text) # don't need this? should already be done in previous script..
+            l = word.lemma
+            if len(w) > 0:
+                dict['lemmas'].append(l.lower())
+                dict['words'].append(w.lower())
+                dict['pos'].append(word.pos)
+                dict['deprel'].append(word.deprel)
+                if not word.text in stop_words:
+                    dict['stop_lemmas'].append(l.lower())
+                    dict['stop_words'].append(w.lower())
+                if word.deprel == 'root':
+                    dict['root'] = word.lemma
+                    dict['root_word'] = word.text
+                    dict['root_pos'] = word.pos
     return dict
 
 def add_to_dependency_dict(answer, sent_with_ans, question, ans_doc, sent_doc, q_doc, stop_words):
@@ -133,6 +134,7 @@ def main(args):
 
 
     # save dataframe
+    dp_dict = dp_dict.reset_index()
     dp_dict.to_pickle(args.output_path)
 
 

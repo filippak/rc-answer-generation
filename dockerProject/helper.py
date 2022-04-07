@@ -38,7 +38,7 @@ class ContextAnswerDataset(Dataset):
 
 class WeightedLossTrainerCA(Trainer):
     def compute_loss(self, model, inputs, return_outputs=False):
-        labels = inputs.get("labels")
+        labels = inputs.get("labels").to("cuda")
         outputs = model(**inputs)
         logits = outputs.get("logits")
 
@@ -46,27 +46,29 @@ class WeightedLossTrainerCA(Trainer):
         # ISNS [0.717, 8.511, 4.936]
         # INS15  [0.64, 17.38, 8.40]
         # TODO: INS125 [0.58, 30.76, 12.86]
+        w = torch.tensor([0.58, 30.76, 12.86]).to("cuda:0")
 
-        loss_fct = nn.CrossEntropyLoss(weight=torch.tensor([0.64, 17.38, 8.40]))
+        loss_fct = nn.CrossEntropyLoss(weight=w)
         loss = loss_fct(logits.view(-1, self.model.config.num_labels), labels.view(-1))
         return (loss, outputs) if return_outputs else loss
 
 class WeightedLossTrainerCAR(Trainer):
     def compute_loss(self, model, inputs, return_outputs=False):
-        labels = inputs.get("labels")
+        labels = inputs.get("labels").to("cuda")
         outputs = model(**inputs)
         logits = outputs.get("logits")
 
         # ISNS weights: [0.74, 10.49, 2.54]
-        # INS weights: [0.54, 110.06, 6.45]
+        # INS weights: [0.54, 110.06, 6.45]'
+        w = torch.tensor([0.74, 10.49, 2.54]).to("cuda:0")
 
-        loss_fct = nn.CrossEntropyLoss(weight=torch.tensor([0.74, 10.49, 2.54]))
+        loss_fct = nn.CrossEntropyLoss(weight=w)
         loss = loss_fct(logits.view(-1, self.model.config.num_labels), labels.view(-1))
         return (loss, outputs) if return_outputs else loss
 
 class WeightedLossTrainerCRA(Trainer):
     def compute_loss(self, model, inputs, return_outputs=False):
-        labels = inputs.get("labels")
+        labels = inputs.get("labels").to("cuda")
         outputs = model(**inputs)
         logits = outputs.get("logits")
         
@@ -74,21 +76,24 @@ class WeightedLossTrainerCRA(Trainer):
         # INS weights: [ 0.50, 289.27, 98.10]
         # INS15 [0.63, 43.71, 21.27]
         # TODO: INS175 [0.67, 25.50, 13.74]
-        loss_fct = nn.CrossEntropyLoss(weight=torch.tensor([0.63, 43.71, 21.27]))
+        w = torch.tensor([0.67, 25.50, 13.74]).to("cuda:0")
+
+        loss_fct = nn.CrossEntropyLoss(weight=w)
         loss = loss_fct(logits.view(-1, self.model.config.num_labels), labels.view(-1))
         return (loss, outputs) if return_outputs else loss
 
 class WeightedLossTrainerCARSentClass(Trainer):
     def compute_loss(self, model, inputs, return_outputs=False):
-        labels = inputs.get("labels")
+        labels = inputs.get("labels").to("cuda")
         outputs = model(**inputs)
         logits = outputs.get("logits")
 
         # INS: [0.54, 6.27] - too many 1's
         # ISNS:  [0.74, 2.50] - too many 0's
         # INS15 [0.66, 3.40]
+        w = torch.tensor([0.66, 3.40]).to("cuda:0")
 
-        loss_fct = nn.CrossEntropyLoss(weight=torch.tensor([0.66, 3.40])) 
+        loss_fct = nn.CrossEntropyLoss(weight=w) 
         loss = loss_fct(logits.view(-1, self.model.config.num_labels), labels.view(-1))
         return (loss, outputs) if return_outputs else loss
 

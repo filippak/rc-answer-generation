@@ -3,11 +3,9 @@ import numpy as np
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, TrainingArguments
 import torch
 import pickle
-# import wandb
 from helper import ContextAnswerDataset, WeightedLossTrainerCARSentClass
 import argparse
 import random
-from datasets import load_metric
 
 # https://huggingface.co/transformers/v3.2.0/custom_datasets.html
 # https://huggingface.co/docs/transformers/custom_datasets
@@ -15,7 +13,7 @@ from datasets import load_metric
 
 # https://wandb.ai/filippak/answer-extraction
 
-BATCH_SIZE = 16
+BATCH_SIZE = 8
 CRA_TOKENS =  ['[BGN]', '[END]']
 
 
@@ -37,34 +35,12 @@ def make_batches(train_data, val_data):
     print('Length of validation data', len(val_data))
     return train_dataset, val_dataset
 
-# TODO: fix this! not working currently..
-def compute_metrics(eval_pred):
-    metric = load_metric("seqeval")
-    predictions, labels = eval_pred
-    predictions = np.argmax(predictions, axis=1)
-    return metric.compute(predictions=predictions, references=labels)
-
 def main(args):
     print("Is Cuda Available: ", torch.cuda.is_available())
     print("Num GPUs Avalailable: ", torch.cuda.device_count())
-    # wandb.init(project=args.wandb_project, entity="filippak")
+
     train_data, val_data = load_data(args.data_path)
-     # TODO: train with all data..
     
-    if args.save_data:
-        random.shuffle(train_data)
-        random.shuffle(val_data)
-        train_data = train_data[:args.num_train]
-        val_data = val_data[:args.num_val]
-        train_path = args.save_path + '_train.pkl'
-        eval_path = args.save_path + '_eval.pkl'
-        with open(train_path, "wb") as output_file:
-            pickle.dump(train_data, output_file)
-        with open(eval_path, "wb") as output_file:
-            pickle.dump(val_data, output_file)
-    else:
-        print('Length of training data: ', len(train_data))
-        print('Length of validation data: ', len(val_data))
     # data is already tokenized with tokenizeer in the dataset.py script
     tokenizer = AutoTokenizer.from_pretrained('KB/bert-base-swedish-cased')
     num_labels = args.num_labels
@@ -73,7 +49,9 @@ def main(args):
     # Implementation details in: 
     # https://github.com/huggingface/transformers/blob/v4.17.0/src/transformers/models/bert/modeling_bert.py
     # row 1501 -> 
-    model = AutoModelForSequenceClassification.from_pretrained("KB/bert-base-swedish-cased", num_labels=num_labels)
+    model = AutoModelForSequenceClassification.from_pretrained("KB/bert-base-swedish-cased", num_labels=num_labels).to("cuda")
+    print('model device: ', model.device)
+    
     num_added_toks = tokenizer.add_tokens(CRA_TOKENS)
     print('Added', num_added_toks, 'tokens')
     model.resize_token_embeddings(len(tokenizer))
@@ -82,24 +60,23 @@ def main(args):
 
     training_args = TrainingArguments(
         output_dir="./results",
-        evaluation_strategy="steps", # can be epochs, then add logging_strategy="epoch",
-        eval_steps=20,
-        logging_steps=20,
+        evaluation_strategy="epoch", # can be epochs, then add logging_strategy="epoch",
+        logging_strategy="epoch",
         learning_rate=2e-5,
         per_device_train_batch_size=BATCH_SIZE,
         per_device_eval_batch_size=BATCH_SIZE,
         num_train_epochs=args.epochs,
         weight_decay=0.01,
-        # report_to="wandb",
         load_best_model_at_end=True
     )
+    print('Training args device: ', training_args.device)
+
     trainer = WeightedLossTrainerCARSentClass(
         model=model,
         args=training_args,
         train_dataset=train_data,
         eval_dataset=val_data,
         tokenizer=tokenizer,
-        # compute_metrics=compute_metrics,
     )
     print('training model..')
     trainer.train()
@@ -107,10 +84,10 @@ def main(args):
     trainer.evaluate()
     print('finished evaluation')
 
-    torch.save(model, args.output_path)
+    trainer.save_model(args.output_path)
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Fine-tune bert model for token classification')
+    parser = argparse.ArgumentParser(description='Fine-tune bert model for sequence classification')
 
     # command-line arguments
     parser.add_argument('data_path', type=str, 

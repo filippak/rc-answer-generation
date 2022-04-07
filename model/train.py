@@ -15,7 +15,7 @@ from datasets import load_metric
 
 # https://wandb.ai/filippak/answer-extraction
 
-BATCH_SIZE = 16
+BATCH_SIZE = 8
 CRA_TOKENS =  ['[BGN]', '[END]']
 
 

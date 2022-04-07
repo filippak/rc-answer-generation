@@ -5,7 +5,7 @@ import numpy as np
 import pickle
 import argparse
 import random
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, AutoModel, AutoModelForTokenClassification
 import torch
 import torch.nn as nn
 from sklearn.metrics import confusion_matrix
@@ -111,7 +111,7 @@ def confusion_matrix_tokens(labels, predicted, title):
     Function that given labels and predictions computes and plots normalized (by rows) confusion matrix
     """
     # Inspiration from: https://vitalflux.com/python-draw-confusion-matrix-matplotlib/
-    c_mat = confusion_matrix(labels, predicted, normalize='true')
+    c_mat = confusion_matrix(labels, predicted, normalize=None)
     fig, ax = plt.subplots(figsize=(7.5, 7.5))
     ax.matshow(c_mat, cmap=plt.cm.Greens, alpha=0.5)
     for i in range(c_mat.shape[0]):
@@ -348,16 +348,19 @@ def evaluate_model(model, tokenizer, data, use_strict, model_name):
 
 
 def main(args):
+    model = AutoModelForTokenClassification.from_pretrained(args.model_path, num_labels=3)
     tokenizer = AutoTokenizer.from_pretrained('KB/bert-base-swedish-cased')
     if args.CRA: # add BGN and END tokens
         num_added_toks = tokenizer.add_tokens(CRA_TOKENS)
 
-    model = torch.load(args.model_path)
+    # cheat to get the model in to torch model form
+    torch.save(model, args.model_path+'.pkl')
+    model = torch.load(args.model_path+'.pkl')
     model.eval()
 
     with open(args.data_path, "rb") as input_file:
         validation_data = pickle.load(input_file)
-    validation_data = validation_data[:10]
+
     evaluate_model(model, tokenizer, validation_data, args.strict, args.model_name)
 
     # save the outputs for the validation data. to use for comparison between CA and CRA model outputs

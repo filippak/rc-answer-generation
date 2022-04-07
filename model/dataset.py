@@ -112,6 +112,8 @@ def main(args):
             if args.CRA_tok_ignore:
                 special_token_ids = tokenizer.convert_tokens_to_ids(CRA_TOKENS)
                 tokenized_inputs_arr, tokenized_inputs_arr_with_id = tokenize_data(tokenizer, data, 512, special_token_ids)
+            else:
+                tokenized_inputs_arr, tokenized_inputs_arr_with_id = tokenize_data(tokenizer, data)
         else:
             tokenized_inputs_arr, tokenized_inputs_arr_with_id = tokenize_data(tokenizer, data)
     

@@ -3,11 +3,9 @@ import numpy as np
 from transformers import AutoTokenizer, DataCollatorForTokenClassification, AutoModelForTokenClassification, TrainingArguments
 import torch
 import pickle
-# import wandb
 from helper import ContextAnswerDataset, WeightedLossTrainerCA, WeightedLossTrainerCAR, WeightedLossTrainerCRA
 import argparse
 import random
-from datasets import load_metric
 
 # https://huggingface.co/transformers/v3.2.0/custom_datasets.html
 # https://huggingface.co/docs/transformers/custom_datasets
@@ -15,7 +13,7 @@ from datasets import load_metric
 
 # https://wandb.ai/filippak/answer-extraction
 
-BATCH_SIZE = 16
+BATCH_SIZE = 8
 CRA_TOKENS =  ['[BGN]', '[END]']
 
 
@@ -37,31 +35,13 @@ def make_batches(train_data, val_data):
     print('Length of validation data', len(val_data))
     return train_dataset, val_dataset
 
-def compute_metrics(p):
-    metric = load_metric("seqeval")
-    predictions, labels = p
-    predictions = np.argmax(predictions, axis=2)
-
-    # Remove ignored index (special tokens)
-    true_predictions = [
-        [p for (p, l) in zip(prediction, label) if l != -100]
-        for prediction, label in zip(predictions, labels)
-    ]
-    true_labels = [
-        [l for (p, l) in zip(prediction, label) if l != -100]
-        for prediction, label in zip(predictions, labels)
-    ]
-
-    results = metric.compute(predictions=true_predictions, references=true_labels)
-    return {
-        "precision": results["overall_precision"],
-        "recall": results["overall_recall"],
-        "f1": results["overall_f1"],
-        "accuracy": results["overall_accuracy"],
-    }
 
 def main(args):
-    # wandb.init(project=args.wandb_project, entity="filippak")
+    print("Is Cuda Available: ", torch.cuda.is_available())
+    use_cuda = torch.cuda.is_available()
+    print("Num GPUs Avalailable: ", torch.cuda.device_count())
+    device = torch.device("cuda" if use_cuda else "cpu")
+
     train_data, val_data = load_data(args.data_path)
     # data is already tokenized with tokenizeer in the dataset.py script
     tokenizer = AutoTokenizer.from_pretrained('KB/bert-base-swedish-cased')
@@ -73,7 +53,9 @@ def main(args):
     # Implementation details in: 
     # https://github.com/huggingface/transformers/blob/v4.17.0/src/transformers/models/bert/modeling_bert.py
     # row 1693 -> 
-    model = AutoModelForTokenClassification.from_pretrained("KB/bert-base-swedish-cased", num_labels=num_labels)
+    model = AutoModelForTokenClassification.from_pretrained("KB/bert-base-swedish-cased", num_labels=num_labels).to(device)
+    print('model device: ', model.device)
+
     if args.CRA:
         num_added_toks = tokenizer.add_tokens(CRA_TOKENS)
         print('Added', num_added_toks, 'tokens')
@@ -91,9 +73,10 @@ def main(args):
         per_device_eval_batch_size=BATCH_SIZE,
         num_train_epochs=args.epochs,
         weight_decay=0.01,
-        report_to="wandb",
         load_best_model_at_end=True
     )
+    print('Training args device: ', training_args.device)
+    
     if args.CAR:
         trainer = WeightedLossTrainerCAR(
             model=model,
@@ -102,7 +85,6 @@ def main(args):
             eval_dataset=val_data,
             data_collator=data_collator,
             tokenizer=tokenizer,
-            compute_metrics=compute_metrics,
         )
     elif args.CRA:
         trainer = WeightedLossTrainerCRA(
@@ -112,7 +94,6 @@ def main(args):
             eval_dataset=val_data,
             data_collator=data_collator,
             tokenizer=tokenizer,
-            compute_metrics=compute_metrics,
         )
     else:
         trainer = WeightedLossTrainerCA(
@@ -122,7 +103,6 @@ def main(args):
             eval_dataset=val_data,
             data_collator=data_collator,
             tokenizer=tokenizer,
-            compute_metrics=compute_metrics,
         )
     print('training model..')
     trainer.train()
@@ -130,7 +110,7 @@ def main(args):
     trainer.evaluate()
     print('finished evaluation')
 
-    torch.save(model, args.output_path)
+    trainer.save_model(args.output_path)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Fine-tune bert model for token classification')
@@ -148,12 +128,8 @@ if __name__ == '__main__':
         help='number of training epochs', action='store', default=3)
     parser.add_argument('--CAR', dest='CAR', action='store_true')
     parser.add_argument('--CRA', dest='CRA', action='store_true')
-    parser.add_argument('--seed', dest='seed', type=int, 
-        help='fix random seeds', action='store', default=42)
 
     args = parser.parse_args()
-    random.seed(args.seed)
-    np.random.seed(args.seed)
     main(args)
 
 
