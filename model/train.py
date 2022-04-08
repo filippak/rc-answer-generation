@@ -154,6 +154,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
     random.seed(args.seed)
     np.random.seed(args.seed)
+    torch.use_deterministic_algorithms(True)
+    torch.backends.cudnn.benchmark = False
     main(args)
 
 

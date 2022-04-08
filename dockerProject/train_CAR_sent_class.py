@@ -104,8 +104,14 @@ if __name__ == '__main__':
     parser.add_argument('--num_train', type=int, dest='num_train', action='store', default=2000)
     parser.add_argument('--num_val', type=int, dest='num_val', action='store', default=400)
     parser.add_argument('--save_path', dest='save_path', action='store')
+    parser.add_argument('--seed', dest='seed', type=int, 
+        help='fix random seeds', action='store', default=42)
 
     args = parser.parse_args()
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+    torch.use_deterministic_algorithms(True)
+    torch.backends.cudnn.benchmark = False
     main(args)
 
 

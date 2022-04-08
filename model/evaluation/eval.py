@@ -119,9 +119,9 @@ def confusion_matrix_tokens(labels, predicted, title):
             val = "{0:.2f}".format(c_mat[i, j])
             ax.text(x=j, y=i,s=val, va='center', ha='center', size='xx-large')
     
-    ax.set_xlabel('Predicted label')    
-    ax.xaxis.set_label_position('top') 
-    plt.ylabel('True label')
+    ax.set_xlabel('Predicted label', fontsize=16)    
+    ax.xaxis.set_label_position('bottom') 
+    plt.ylabel('True label', fontsize=16)
     plt.title(title, fontsize=18)
     plt.show()
 
@@ -337,7 +337,7 @@ def evaluate_model(model, tokenizer, data, use_strict, model_name):
     if use_strict:
         title += 'Strict evaluation of '
     else:
-        title += 'Partial evaluation of'
+        title += 'Partial evaluation of '
     if args.CRA:
         title += 'CR-A '
     else:

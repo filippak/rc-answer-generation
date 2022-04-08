@@ -45,7 +45,9 @@ class WeightedLossTrainerCA(Trainer):
         # INS: [0.51, 72.43, 24.36]
         # ISNS [0.717, 8.511, 4.936]
         # INS15  [0.64, 17.38, 8.40]
-        # TODO: INS125 [0.58, 30.76, 12.86]
+        # INS125 [0.58, 30.76, 12.86]
+        # INS1375 [0.61, 22.53, 10.20]
+        # INS1125 [0.55, 45.01, 17.08]
 
         loss_fct = nn.CrossEntropyLoss(weight=torch.tensor([0.64, 17.38, 8.40]))
         loss = loss_fct(logits.view(-1, self.model.config.num_labels), labels.view(-1))

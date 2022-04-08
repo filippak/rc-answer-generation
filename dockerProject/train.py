@@ -128,8 +128,14 @@ if __name__ == '__main__':
         help='number of training epochs', action='store', default=3)
     parser.add_argument('--CAR', dest='CAR', action='store_true')
     parser.add_argument('--CRA', dest='CRA', action='store_true')
+    parser.add_argument('--seed', dest='seed', type=int, 
+        help='fix random seeds', action='store', default=42)
 
     args = parser.parse_args()
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+    torch.use_deterministic_algorithms(True)
+    torch.backends.cudnn.benchmark = False
     main(args)
 
 

@@ -5,7 +5,7 @@ import numpy as np
 import pickle
 import argparse
 import random
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, AutoModel, AutoModelForSequenceClassification
 import torch
 import torch.nn as nn
 from eval import confusion_matrix_tokens
@@ -27,8 +27,8 @@ def get_model_predictions(data, model):
     max = m(output.logits)
     # print('max: ',max)
     out = torch.argmax(max, dim=1)
-    print('prediction: ', out[0])
-    print('label: ', data['label'])
+    # print('prediction: ', out[0])
+    # print('label: ', data['label'])
     return out[0]
 
 def evaluate_model(model, tokenizer, data, model_name):
@@ -71,14 +71,17 @@ def evaluate_model(model, tokenizer, data, model_name):
 
 def main(args):
     tokenizer = AutoTokenizer.from_pretrained('KB/bert-base-swedish-cased')
+    model = AutoModelForSequenceClassification.from_pretrained(args.model_path, num_labels=2)
     num_added_toks = tokenizer.add_tokens(CRA_TOKENS)
 
-    model = torch.load(args.model_path)
+    # cheat to get the model in to torch model form
+    torch.save(model, args.model_path+'.pkl')
+    model = torch.load(args.model_path+'.pkl')
     model.eval()
 
     with open(args.data_path, "rb") as input_file:
         validation_data = pickle.load(input_file)
-    
+    validation_data = validation_data[:100]
     evaluate_model(model, tokenizer, validation_data, args.model_name)
     
 if __name__ == '__main__':
