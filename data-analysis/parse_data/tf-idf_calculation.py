@@ -12,7 +12,6 @@ def combine_docs(df, col, q_col):
     docs = []
     for index, row in df.iterrows():
         context = row[col]
-        # question = row[q_col]
         if isinstance(context[0], list):
             sents = []
             for sent in context:
@@ -20,11 +19,6 @@ def combine_docs(df, col, q_col):
                 sents.append(sent_str)
             context = sents
         doc = ' '.join(context)
-        # append the question to the context (to add question words to corpus)
-        # if isinstance(question, list):
-            # question = ' '.join(question)
-        # print('question: ', question)
-        # doc += ' ' + question
         docs.append(doc)
     return docs
 
