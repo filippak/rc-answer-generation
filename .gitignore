@@ -2,6 +2,7 @@
 dockerProject/data
 dockerProject/results
 dockerProject.zip
+commands.txt
 
 # dataset data
 data/dataset-2022-03-09/

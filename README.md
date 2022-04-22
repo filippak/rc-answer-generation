@@ -25,6 +25,8 @@ The notebooks for data analysis are located in the folder `data-analysis/data_an
 1. Run the docker container
     1. For older versions of nvidia and docker: `nvidia-docker run --rm -e NVIDIA_VISIBLE_DEVICES=0 -v "$(pwd):/workspace" -v "$HOME/dockerProject/results:/workspace/results" rc_answer_extraction sh train_model.sh`
     1. For newer versions of nvidia and docker: `docker run --rm -t --shm-size=1g --gpus all -e CUBLAS_WORKSPACE_CONFIG=:16:8 -v "$(pwd):/workspace" -v "$HOME/dockerProject/results:/workspace/results" rc_answer_extraction sh train_model.sh`
+    1. When setting the GPU: `docker run --rm -t --shm-size=1g --gpus '"device=0"' -e CUBLAS_WORKSPACE_CONFIG=:16:8 -v "$(pwd):/workspace" -v "$HOME/dockerProject/results:/workspace/results" karrfe_answer_extraction sh train_model.sh`
+
         1. `-e CUBLAS_WORKSPACE_CONFIG=:16:8` sets environment variable for reproducibility
         1. This will run the scripts specified in `train_model.sh` in the docker container on 1 GPU (0)
         1. `$HOME` has to be modified to fit the paths on the current system

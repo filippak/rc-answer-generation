@@ -27,8 +27,8 @@ def get_model_predictions(data, model):
     max = m(output.logits)
     # print('max: ',max)
     out = torch.argmax(max, dim=1)
-    # print('prediction: ', out[0])
-    # print('label: ', data['label'])
+    print('prediction: ', out[0])
+    print('label: ', data['label'])
     return out[0]
 
 def evaluate_model(model, tokenizer, data, model_name):
@@ -81,6 +81,7 @@ def main(args):
 
     with open(args.data_path, "rb") as input_file:
         validation_data = pickle.load(input_file)
+    random.shuffle(validation_data)
     validation_data = validation_data[:100]
     evaluate_model(model, tokenizer, validation_data, args.model_name)
     

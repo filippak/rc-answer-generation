@@ -60,8 +60,13 @@ def main(args):
 
     training_args = TrainingArguments(
         output_dir="./results",
-        evaluation_strategy="epoch", # can be epochs, then add logging_strategy="epoch",
-        logging_strategy="epoch",
+        # evaluation_strategy="epoch", # can be epochs, then add logging_strategy="epoch",
+        # logging_strategy="epoch",
+        save_steps=2000,
+        evaluation_strategy="steps", # can be epochs, then add logging_strategy="epoch",
+        eval_steps=2000,
+        logging_steps=2000,
+        save_total_limit=5,
         learning_rate=2e-5,
         per_device_train_batch_size=BATCH_SIZE,
         per_device_eval_batch_size=BATCH_SIZE,

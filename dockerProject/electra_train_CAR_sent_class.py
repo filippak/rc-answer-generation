@@ -1,9 +1,9 @@
 # file to load the data, tokenize and update labels accordingly
 import numpy as np
-from transformers import AutoTokenizer, DataCollatorForTokenClassification, AutoModelForTokenClassification, TrainingArguments
+from transformers import ElectraTokenizer, ElectraForSequenceClassification, TrainingArguments
 import torch
 import pickle
-from helper import ContextAnswerDataset, WeightedLossTrainerCA, WeightedLossTrainerCAR, WeightedLossTrainerCRA
+from helper import ContextAnswerDataset, WeightedLossTrainerCARSentClass
 import argparse
 import random
 
@@ -35,39 +35,38 @@ def make_batches(train_data, val_data):
     print('Length of validation data', len(val_data))
     return train_dataset, val_dataset
 
-
 def main(args):
     print("Is Cuda Available: ", torch.cuda.is_available())
-    use_cuda = torch.cuda.is_available()
     print("Num GPUs Avalailable: ", torch.cuda.device_count())
-    device = torch.device("cuda" if use_cuda else "cpu")
 
     train_data, val_data = load_data(args.data_path)
+    
     # data is already tokenized with tokenizeer in the dataset.py script
-    tokenizer = AutoTokenizer.from_pretrained('KB/bert-base-swedish-cased')
-
-    data_collator = DataCollatorForTokenClassification(tokenizer)
+    tokenizer = ElectraTokenizer.from_pretrained('KB/electra-base-swedish-cased-discriminator')
     num_labels = args.num_labels
 
-     # Linear layer on top of the hidden states output
+    # Linear layer on top of pooled output (= the output for the [CLS] token?)
     # Implementation details in: 
     # https://github.com/huggingface/transformers/blob/v4.17.0/src/transformers/models/bert/modeling_bert.py
-    # row 1693 -> 
-    model = AutoModelForTokenClassification.from_pretrained("KB/bert-base-swedish-cased", num_labels=num_labels).to(device)
+    # row 1501 -> 
+    model = ElectraForSequenceClassification.from_pretrained("KB/electra-base-swedish-cased-discriminator", num_labels=num_labels).to("cuda")
     print('model device: ', model.device)
-
-    if args.CRA:
-        num_added_toks = tokenizer.add_tokens(CRA_TOKENS)
-        print('Added', num_added_toks, 'tokens')
-        model.resize_token_embeddings(len(tokenizer))
+    
+    num_added_toks = tokenizer.add_tokens(CRA_TOKENS)
+    print('Added', num_added_toks, 'tokens')
+    model.resize_token_embeddings(len(tokenizer))
 
     train_data, val_data = make_batches(train_data, val_data)
 
     training_args = TrainingArguments(
         output_dir="./results",
+        # evaluation_strategy="epoch", # can be epochs, then add logging_strategy="epoch",
+        # logging_strategy="epoch",
+        save_steps=500,
         evaluation_strategy="steps", # can be epochs, then add logging_strategy="epoch",
-        eval_steps=20,
-        logging_steps=20,
+        eval_steps=500,
+        logging_steps=500,
+        save_total_limit=5,
         learning_rate=2e-5,
         per_device_train_batch_size=BATCH_SIZE,
         per_device_eval_batch_size=BATCH_SIZE,
@@ -76,34 +75,14 @@ def main(args):
         load_best_model_at_end=True
     )
     print('Training args device: ', training_args.device)
-    
-    if args.CAR:
-        trainer = WeightedLossTrainerCAR(
-            model=model,
-            args=training_args,
-            train_dataset=train_data,
-            eval_dataset=val_data,
-            data_collator=data_collator,
-            tokenizer=tokenizer,
-        )
-    elif args.CRA:
-        trainer = WeightedLossTrainerCRA(
-            model=model,
-            args=training_args,
-            train_dataset=train_data,
-            eval_dataset=val_data,
-            data_collator=data_collator,
-            tokenizer=tokenizer,
-        )
-    else:
-        trainer = WeightedLossTrainerCA(
-            model=model,
-            args=training_args,
-            train_dataset=train_data,
-            eval_dataset=val_data,
-            data_collator=data_collator,
-            tokenizer=tokenizer,
-        )
+
+    trainer = WeightedLossTrainerCARSentClass(
+        model=model,
+        args=training_args,
+        train_dataset=train_data,
+        eval_dataset=val_data,
+        tokenizer=tokenizer,
+    )
     print('training model..')
     trainer.train()
     print('finished training model')
@@ -113,7 +92,7 @@ def main(args):
     trainer.save_model(args.output_path)
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Fine-tune bert model for token classification')
+    parser = argparse.ArgumentParser(description='Fine-tune bert model for sequence classification')
 
     # command-line arguments
     parser.add_argument('data_path', type=str, 
@@ -123,11 +102,13 @@ if __name__ == '__main__':
     parser.add_argument('wandb_project', type=str,
         help='wandb project name (can be answer-extraction or sentence-extraction)', action='store')
     parser.add_argument('num_labels', type=int, 
-        help='number of labels', action='store', default=3)
+        help='number of labels', action='store', default=2)
     parser.add_argument('epochs', type=int, 
         help='number of training epochs', action='store', default=3)
-    parser.add_argument('--CAR', dest='CAR', action='store_true')
-    parser.add_argument('--CRA', dest='CRA', action='store_true')
+    parser.add_argument('--save', dest='save_data', action='store_true')
+    parser.add_argument('--num_train', type=int, dest='num_train', action='store', default=2000)
+    parser.add_argument('--num_val', type=int, dest='num_val', action='store', default=400)
+    parser.add_argument('--save_path', dest='save_path', action='store')
     parser.add_argument('--seed', dest='seed', type=int, 
         help='fix random seeds', action='store', default=42)
 

@@ -229,7 +229,7 @@ def evaluate_model_answer_spans(true_labels, output_labels, word_ids):
     stats['FP'] += num_answers - stats['TP']
     return stats
 
-def print_extracted_answers(output_labels, tokens):
+def print_extracted_answers(output_labels, tokens, word_ids):
     """
     Function that prints tokens corresponding to answer segments 
     
@@ -238,7 +238,8 @@ def print_extracted_answers(output_labels, tokens):
     - tokens: array of tokens corresponding to the labels
     Output: array of strings corresponding to the answer segments as present in the labels array
     """
-    predicted_segments = get_token_segments(output_labels)
+    print('tokens: ',tokens)
+    predicted_segments = get_token_segments(output_labels, word_ids)
     all_l = []
     for segment in predicted_segments:
         l = ''
@@ -250,7 +251,7 @@ def print_extracted_answers(output_labels, tokens):
                 l += ' ' + token
             else:
                 l += token
-        print(l)
+        print('answer', l)
         all_l.append(l)
     return all_l
 
@@ -285,12 +286,12 @@ def evaluate_model(model, tokenizer, data, use_strict, model_name):
     y_preds = []
     for i in range(len(data)):
         out = get_model_predictions(data[i], model)
-
+        word_ids = word_ids = data[i].word_ids()
         tokens = tokenizer.convert_ids_to_tokens(data[i]["input_ids"]) # to use if printing results..
         true_labels = correct_word_piece_tokens(data[i], data[i]['labels']) # replace the -100 labels used in training..
         y_labels += true_labels
         data[i]['true_labels'] = true_labels
-        # print_extracted_answers(true_labels, tokens)
+        # print_extracted_answers(true_labels, tokens, word_ids)
 
         output_labels = correct_word_piece_tokens(data[i], out)
         if use_strict:
@@ -301,8 +302,8 @@ def evaluate_model(model, tokenizer, data, use_strict, model_name):
         # set the output labels to the data point
         data[i]['predicted_labels'] = output_labels
         y_preds += output_labels
+        # print_extracted_answers(output_labels, tokens, word_ids)
 
-        word_ids = word_ids = data[i].word_ids()
         item_stats = evaluate_model_answer_spans(true_labels, output_labels, word_ids)
         answer_stats['FP'] += item_stats['FP']
         answer_stats['TP'] += item_stats['TP']
