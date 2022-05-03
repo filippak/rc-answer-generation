@@ -1,8 +1,8 @@
-echo 'evaluation of C,A -> R model, trained with INS weighted loss. '
-python eval_CAR_classification.py ../results/CAR_classification/model_CAR_CLASS_3e_INS ../data/CAR_classification/tokenized_CAR_class_data_eval_with_id.pkl INS
+echo 'evaluation of C,A -> R model, labeling scheme A'
+python eval_CAR_classification.py  ../results/CAR_classification/balanced/CAR_A_balanced_3e_fixed_seed ../data/CAR_classification/balanced/tokenized_CAR_class_data_eval_with_id.pkl 'scheme A'
 
-echo 'evaluation of C,A -> R model, trained with ISNS weighted loss. '
-python eval_CAR_classification.py ../results/CAR_classification/model_CAR_CLASS_3e_ISNS ../data/CAR_classification/tokenized_CAR_class_data_eval_with_id.pkl ISNS
+echo 'evaluation of C,A -> R model, labeling scheme B'
+python eval_CAR_classification.py ../results/CAR_classification/token_type_ids/CAR_A_tti_balanced_3e_fixed_seed ../data/CAR_classification/set_token_type/balanced/tokenized_CAR_class_data_eval_with_id.pkl 'scheme B'
 
-echo 'evaluation of C,A -> R model, trained with INS15 weighted loss. '
-python eval_CAR_classification.py ../results/CAR_classification/model_CAR_CLASS_3e_INS15 ../data/CAR_classification/tokenized_CAR_class_data_eval_with_id.pkl INS15
+echo 'evaluation of C,A -> R model, labeling scheme C'
+python eval_CAR_classification.py ../results/CAR_classification/sent/balanced/CAR_B_balanced_3e_fixed_seed ../data/CAR_classification/sent/balanced/tokenized_CAR_class_data_eval_with_id.pkl 'scheme C'

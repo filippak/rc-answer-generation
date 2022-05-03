@@ -123,7 +123,8 @@ def confusion_matrix_tokens(labels, predicted, title):
     ax.xaxis.set_label_position('bottom') 
     plt.ylabel('True label', fontsize=16)
     plt.title(title, fontsize=18)
-    plt.show()
+    # plt.show()
+    plt.savefig('./figures/'+title)
 
 
 def evaluate_model_tokens(labels, predicted):
@@ -140,9 +141,9 @@ def evaluate_model_tokens(labels, predicted):
         if label == 2 and predicted[idx] == 2:
             stats['TP'] += 1
         elif label > 0:
-            stats['FP'] += 1
-        elif predicted[idx] > 0:
             stats['FN'] += 1
+        elif predicted[idx] > 0:
+            stats['FP'] += 1
     return stats
 
 def get_correct_answer_dict(label_segments):
@@ -214,9 +215,9 @@ def evaluate_model_answer_spans(true_labels, output_labels, word_ids):
                     stats['TP'] += 1 # only count 1 true positive
                     label_dict[label_dict_key] = {'max_jacc': jacc, 'segments': [{'segment':s, 'jaccard': jacc}], 'segment_length': s[1]-a[1]}
             
-            # only count each of the predicted segments as a false negative once!
+            # only count each of the predicted segments as a false positive once!
             elif output_dict[output_dict_key] == None:
-                stats['FN'] += 1
+                stats['FP'] += 1
                 output_dict[output_dict_key] = True
         
         # add the max jaccard score for the current correct answer (if a match was found)
@@ -226,7 +227,7 @@ def evaluate_model_answer_spans(true_labels, output_labels, word_ids):
 
 
     # the number of correct answers that were missed
-    stats['FP'] += num_answers - stats['TP']
+    stats['FN'] += num_answers - stats['TP']
     return stats
 
 def print_extracted_answers(output_labels, tokens, word_ids):
@@ -320,16 +321,16 @@ def evaluate_model(model, tokenizer, data, use_strict, model_name):
     pre_t = token_stats['TP']/(token_stats['TP'] + token_stats['FP'])
     rec_t = token_stats['TP']/(token_stats['TP']+token_stats['FN'])
     f1_t = 2 * (pre_t * rec_t)/(pre_t + rec_t)
-    print('Precision, tokens: {:.2f}'.format(pre_t))
-    print('Recall, tokens: {:.2f}'.format(rec_t))
-    print('F1-score, tokens: {:.2f}'.format(f1_t))
+    # print('Precision, tokens: {:.2f}'.format(pre_t))
+    # print('Recall, tokens: {:.2f}'.format(rec_t))
+    # print('F1-score, tokens: {:.2f}'.format(f1_t))
     
     pre = answer_stats['TP']/(answer_stats['TP']+answer_stats['FP'])
     rec = answer_stats['TP']/(answer_stats['TP']+answer_stats['FN'])
     f1 = 2 * (pre * rec)/(pre + rec)
     print('Precision, answers: {:.2f}'.format(pre))
     print('Recall, answers: {:.2f}'.format(rec))
-    print('F1-score, answers: {:.2f}'.format(f1))
+    # print('F1-score, answers: {:.2f}'.format(f1))
     print('Mean Jaccard score: {:.2f}'.format(np.mean(np.ravel(answer_stats['jaccard']))))
     print('Mean answer length diff (predicted - true): {:.2f}'.format(np.mean(np.ravel(answer_stats['overlap']))))
     
@@ -343,7 +344,7 @@ def evaluate_model(model, tokenizer, data, use_strict, model_name):
         title += 'CR-A '
     else:
         title += 'C-A '
-    title += 'model trained with {} weights. '.format(model_name)
+    title += 'model trained with {} weights'.format(model_name)
     confusion_matrix_tokens(y_labels, y_preds, title)
 
 

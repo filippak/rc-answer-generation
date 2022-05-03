@@ -5,7 +5,7 @@ import numpy as np
 import pickle
 import argparse
 import random
-from transformers import AutoTokenizer, AutoModel, AutoModelForSequenceClassification
+from transformers import AutoTokenizer, ElectraTokenizer, AutoModel, AutoModelForSequenceClassification, ElectraForSequenceClassification
 import torch
 import torch.nn as nn
 from eval import confusion_matrix_tokens
@@ -14,21 +14,24 @@ CRA_TOKENS =  ['[BGN]', '[END]']
 
 
 
-def get_model_predictions(data, model):
+def get_model_predictions(data, model, tokenizer):
     """
     Function to get prediction for a data point (datapoint being a tokenized text segment)
     
     Input: data to predict, model to predict with
     Output: prediction for input data
     """
+    # print('data: ', data)
+    # decoded_sequence = tokenizer.decode(data['input_ids'])
+    # print(decoded_sequence)
     output = model(torch.tensor([data['input_ids']]), attention_mask=torch.tensor([data['attention_mask']]), token_type_ids=torch.tensor([data['token_type_ids']]), labels=torch.tensor([data['label']]))
     # print('output: ', output)
     m = nn.Softmax(dim=1)
     max = m(output.logits)
     # print('max: ',max)
     out = torch.argmax(max, dim=1)
-    print('prediction: ', out[0])
-    print('label: ', data['label'])
+    # print('prediction: ', out[0])
+    # print('label: ', data['label'])
     return out[0]
 
 def evaluate_model(model, tokenizer, data, model_name):
@@ -39,7 +42,7 @@ def evaluate_model(model, tokenizer, data, model_name):
     y_labels = []
     y_preds = []
     for i in range(len(data)):
-        out = get_model_predictions(data[i], model)
+        out = get_model_predictions(data[i], model, tokenizer)
         y_preds.append(out)
         y_labels.append(data[i]['label'])
 
@@ -49,9 +52,9 @@ def evaluate_model(model, tokenizer, data, model_name):
         if data[i]['label'] == 1 and out == 1:
             stats['TP'] += 1
         elif data[i]['label'] > 0:
-            stats['FP'] += 1
-        elif out > 0:
             stats['FN'] += 1
+        elif out > 0:
+            stats['FP'] += 1
         
     
     # calculate precision and recall, F1-score
@@ -64,7 +67,7 @@ def evaluate_model(model, tokenizer, data, model_name):
     
     
     # plot the confusion matrix on token level
-    title = 'CA-R model trained with {} weights. '.format(model_name)
+    title = 'CA-R model trained on {} labeled data'.format(model_name)
     confusion_matrix_tokens(y_labels, y_preds, title)
 
 
@@ -72,6 +75,9 @@ def evaluate_model(model, tokenizer, data, model_name):
 def main(args):
     tokenizer = AutoTokenizer.from_pretrained('KB/bert-base-swedish-cased')
     model = AutoModelForSequenceClassification.from_pretrained(args.model_path, num_labels=2)
+    # tokenizer = ElectraTokenizer.from_pretrained('KB/electra-base-swedish-cased-discriminator')
+    # model = ElectraForSequenceClassification.from_pretrained(args.model_path, num_labels=2)
+
     num_added_toks = tokenizer.add_tokens(CRA_TOKENS)
 
     # cheat to get the model in to torch model form
@@ -82,7 +88,7 @@ def main(args):
     with open(args.data_path, "rb") as input_file:
         validation_data = pickle.load(input_file)
     random.shuffle(validation_data)
-    validation_data = validation_data[:100]
+    validation_data = validation_data[:20]
     evaluate_model(model, tokenizer, validation_data, args.model_name)
     
 if __name__ == '__main__':

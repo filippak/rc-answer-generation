@@ -15,6 +15,7 @@ END = "[END]"
 def get_tokens_and_labels(sentences, ranked_sentence_ids):
     all_context_texts = []
     all_labels = []
+    all_marked_sentences = []
 
     # For each sentence, highlight one sentence in context text
     # label whole text as 0 / 1 
@@ -27,13 +28,14 @@ def get_tokens_and_labels(sentences, ranked_sentence_ids):
         for idx2, sent2 in enumerate(sentences):
             if idx2 == idx:
                 context_text += [BGN] + sent2 + [END]
+                all_marked_sentences.append(sent2)
             else:
                 context_text += sent2 # concatenate all sentences to a list of consecutive tokens
         
         all_context_texts.append(context_text)
         all_labels.append(label)
 
-    return all_context_texts, all_labels
+    return all_context_texts, all_labels, all_marked_sentences
 
 def label_data(df):
     relevant_sentence_data = []
@@ -53,9 +55,9 @@ def label_data(df):
                 sent_ids.append(sent_id)
                 count += 1
 
-        context_text_arr, labels_arr = get_tokens_and_labels(sentences, sent_ids)
+        context_text_arr, labels_arr, sentence_arr = get_tokens_and_labels(sentences, sent_ids)
         for c_idx, c_text in enumerate(context_text_arr):
-            data_point = {'context_id': int(context_id), 'id': index, 'label': labels_arr[c_idx], 'tokens': c_text, 'answer': answer}
+            data_point = {'context_id': int(context_id), 'id': index, 'label': labels_arr[c_idx], 'tokens': c_text, 'answer': answer, 'sentence': sentence_arr[c_idx]}
             relevant_sentence_data.append(data_point)
     
     print(relevant_sentence_data[19])

@@ -151,6 +151,7 @@ if __name__ == '__main__':
     parser.add_argument('--seed', dest='seed', type=int, 
         help='fix random seeds', action='store', default=42)
 
+    # torch manual seed
     args = parser.parse_args()
     random.seed(args.seed)
     np.random.seed(args.seed)
