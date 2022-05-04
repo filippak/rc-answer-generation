@@ -35,7 +35,7 @@ def get_token_segments(labels, word_ids):
             labels_stats.append((idx, count))
     return labels_stats
 
-def correct_word_piece_tokens(tokenized_inputs, labels_in):
+def correct_word_piece_tokens(tokenized_inputs, labels_in, tokens):
     """
     Function to correct labels on given input data.
     This function is used to
@@ -49,6 +49,11 @@ def correct_word_piece_tokens(tokenized_inputs, labels_in):
     previous_word_idx = None
     previous_word_label = None
     label_ids = []
+
+    # get the corresponding tokens and labels from the wordpieces (will merge tokens and set label to start of token)
+    token_list = []
+    token_labels = []
+    token_word_ids = [] # save the first word id for each word to work with later code..
     for idx, word_idx in enumerate(word_ids):
         if word_idx is None:
             label_ids.append(0) # label CLS, SEP as 0..
@@ -57,16 +62,27 @@ def correct_word_piece_tokens(tokenized_inputs, labels_in):
             if labels_in[idx] <= 0: # [BGN] and [END] can be labeled -100, but should in eval be equal to 0..
                 label_ids.append(0)
                 previous_word_label = 0
+                # append the word as a new token in the list
+                if tokens[idx] not in CRA_TOKENS:
+                    token_list.append(tokens[idx])
+                    token_labels.append(0)
+                    token_word_ids.append(word_idx)
             else:
                 label_ids.append(labels_in[idx])
                 previous_word_label = labels_in[idx]
+                # append to token list
+                token_list.append(tokens[idx])
+                token_labels.append(labels_in[idx])
+                token_word_ids.append(word_idx)
         else:
             # this token belongs to the same word as the previous 
             # -> must have label that match the previous label 
             label_ids.append(previous_word_label)
+            # append the continuation of the word to the last token of the list
+            token_list[-1] += tokens[idx][2:]
+
         previous_word_idx = word_idx
-    
-    return label_ids
+    return label_ids, token_list, token_labels, token_word_ids
 
 def prediction_output_partial(output):
     """
@@ -270,7 +286,7 @@ def get_model_predictions(data, model):
     out = torch.argmax(max, dim=2)
     return out[0]
 
-def evaluate_model(model, tokenizer, data, use_strict, model_name):
+def evaluate_model(model, tokenizer, data, use_strict, model_name, token_eval):
     """
     function to evaluate model on given data
     
@@ -283,36 +299,58 @@ def evaluate_model(model, tokenizer, data, use_strict, model_name):
     """
     answer_stats = {'FP': 0, 'TP': 0, 'FN': 0, 'jaccard': [], 'overlap': []}
     token_stats = {'FP': 0, 'TP': 0, 'FN': 0}
+    # prediction on the wordpiece level
     y_labels = []
     y_preds = []
+    # predictions on the token level
+    y_token_labels = []
+    y_token_preds = []
     for i in range(len(data)):
         out = get_model_predictions(data[i], model)
         word_ids = word_ids = data[i].word_ids()
         tokens = tokenizer.convert_ids_to_tokens(data[i]["input_ids"]) # to use if printing results..
-        true_labels = correct_word_piece_tokens(data[i], data[i]['labels']) # replace the -100 labels used in training..
+        true_labels, true_token_list, true_token_labels, token_word_ids = correct_word_piece_tokens(data[i], data[i]['labels'], tokens) # replace the -100 labels used in training..
         y_labels += true_labels
+        y_token_labels += true_token_labels
         data[i]['true_labels'] = true_labels
+        data[i]['token_list'] = true_token_list
+        data[i]['token_word_ids'] = token_word_ids
+        data[i]['true_token_labels'] = true_token_labels
         # print_extracted_answers(true_labels, tokens, word_ids)
 
-        output_labels = correct_word_piece_tokens(data[i], out)
+        output_labels, output_token_list, output_token_labels, _ = correct_word_piece_tokens(data[i], out, tokens)
         if use_strict:
             output_labels = prediction_output_strict(output_labels)
+            output_token_labels = prediction_output_strict(output_token_labels)
         else:
             output_labels = prediction_output_partial(output_labels)
+            output_token_labels = prediction_output_partial(output_token_labels)
         
         # set the output labels to the data point
         data[i]['predicted_labels'] = output_labels
+        data[i]['predicted_token_labels'] = output_token_labels
         y_preds += output_labels
+        y_token_preds += output_token_labels
         # print_extracted_answers(output_labels, tokens, word_ids)
+        
+        # evaluate on token level or WordPiece level
+        if token_eval:
+            labels = true_token_labels
+            preds = output_token_labels
+            current_word_ids = token_word_ids
+        else:
+            labels = true_labels
+            preds = output_labels
+            current_word_ids = word_ids
 
-        item_stats = evaluate_model_answer_spans(true_labels, output_labels, word_ids)
+        item_stats = evaluate_model_answer_spans(labels, preds, current_word_ids)
         answer_stats['FP'] += item_stats['FP']
         answer_stats['TP'] += item_stats['TP']
         answer_stats['FN'] += item_stats['FN']
         answer_stats['jaccard'] += item_stats['jaccard']
         answer_stats['overlap'] += item_stats['overlap']
 
-        item_token_stats = evaluate_model_tokens(true_labels, output_labels)
+        item_token_stats = evaluate_model_tokens(labels, preds)
         token_stats['FP'] += item_token_stats['FP']
         token_stats['TP'] += item_token_stats['TP']
         token_stats['FN'] += item_token_stats['FN']
@@ -343,9 +381,15 @@ def evaluate_model(model, tokenizer, data, use_strict, model_name):
     if args.CRA:
         title += 'CR-A '
     else:
-        title += 'C-A '
+        title += 'CA '
     title += 'model trained with {} weights'.format(model_name)
-    confusion_matrix_tokens(y_labels, y_preds, title)
+    if token_eval:
+        all_labels = y_token_labels
+        all_preds = y_token_preds
+    else:
+        all_labels = y_labels
+        all_preds = y_preds
+    confusion_matrix_tokens(all_labels, all_preds, title)
 
 
 
@@ -363,7 +407,7 @@ def main(args):
     with open(args.data_path, "rb") as input_file:
         validation_data = pickle.load(input_file)
 
-    evaluate_model(model, tokenizer, validation_data, args.strict, args.model_name)
+    evaluate_model(model, tokenizer, validation_data, args.strict, args.model_name, args.token_eval)
 
     # save the outputs for the validation data. to use for comparison between CA and CRA model outputs
     with open(args.output_path, "wb") as output_file:
@@ -383,6 +427,7 @@ if __name__ == '__main__':
         help='name of model that is being evaluated', action='store')
     parser.add_argument('--strict', dest='strict', action='store_true')
     parser.add_argument('--CRA', dest='CRA', action='store_true')
+    parser.add_argument('--token_eval', dest='token_eval', action='store_true')
     parser.add_argument('--seed', dest='seed', type=int, 
         help='fix random seeds', action='store', default=42)
 

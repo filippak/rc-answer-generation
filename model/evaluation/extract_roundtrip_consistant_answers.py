@@ -4,10 +4,11 @@ import numpy as np
 import pickle
 import argparse
 import random
+import copy
 from transformers import AutoTokenizer
 import torch
 import torch.nn as nn
-from eval import get_token_segments
+from eval import get_token_segments, confusion_matrix_tokens, evaluate_model_answer_spans, get_jaccard_score
 
 CRA_TOKENS =  ['[BGN]', '[END]']
 # convert_tokens_to_ids -- to get id of tokens!! 
@@ -44,7 +45,8 @@ def get_tokens_for_segments(data, segments, tokenizer):
 
 def get_answers(data, tokenizer, answer_type):
     tokens = tokenizer.convert_ids_to_tokens(data["input_ids"])
-    segments = get_token_segments(data[answer_type])
+    word_ids = data.word_ids()
+    segments = get_token_segments(data[answer_type], word_ids)
     all_l = []
     for segment in segments:
         # print('segment: ', segment)
@@ -85,40 +87,103 @@ def make_CRA_seg_str(segments):
             keys.append(key)
     return keys
 
+def label_CA_data_mod(data, ok_answers):
+    """
+    Function to label the CA data with only the rountrip consistent answers
+    """
+    new_data = copy.deepcopy(data)
+    new_predictions = [0 for _ in range(len(data['predicted_labels']))]
+    for ans in ok_answers:
+        for i in range(ans[1]):
+            if i == 0:
+                new_predictions[ans[0]+i] = 1
+            else:
+                new_predictions[ans[0]+i] = 2
+    new_data['predicted_labels'] = new_predictions
+    return new_data
 
 def compare_token_segments(CA_data, CRA_data, tokenizer, context_text_map):
+    num_removed_exact = 0
+    num_predicted_answers_exact = 0
     num_removed = 0
-    total_num_predicted_answers = 0
+    num_predicted_answers = 0
     total_num_answers = 0
+    CA_data_mod = []
+    y_labels = []
+    y_preds  = []
+    answer_stats = {'FP': 0, 'TP': 0, 'FN': 0, 'jaccard': [], 'overlap': []}
     for data in CA_data:
-        segments = get_token_segments(data['predicted_labels'])
+        word_ids = data.word_ids()
+        segments = get_token_segments(data['predicted_labels'], word_ids)
         context_id = data['context_id']
+        print('context text id: ', context_id)
         CRA_data_context = context_text_map[context_id]
         CRA_segments = []
         # collect all CRA segments!
         for CRA_data in CRA_data_context:
             data_mod = remove_BGN_END_tokens(CRA_data, tokenizer)
-            CRA_segments += get_token_segments(data_mod['predicted_labels'])
+            CRA_word_ids = data_mod.word_ids()
+            CRA_segments += get_token_segments(data_mod['predicted_labels'], CRA_word_ids)
         
-        label_answers = get_answers(data, tokenizer, 'true_labels')
-        total_num_answers += len(label_answers)
-        print('correct_answers: ', label_answers)
+        # label_answers = get_answers(data, tokenizer, 'true_labels')
+        # total_num_answers += len(label_answers)
+        # print('correct_answers: ', label_answers)
         CRA_keys = make_CRA_seg_str(CRA_segments)
         ok_answers = []
+        ok_answers_exact = []
         for s in segments:
+            start = s[0]
+            end = s[0]+s[1]-1
             key = str(s[0]) + ' ' + str(s[1])
-            if key in CRA_keys:
-                ok_answers.append(s)
-                total_num_predicted_answers += 1
-            else:
+            added = False
+            for s_cra in CRA_segments:
+                start_cra = s_cra[0]
+                end_cra = s_cra[0]+s_cra[1]-1
+                if not added and start <= end_cra and end >= start_cra:
+                    #there is overlap!
+                    # jacc = get_jaccard_score(s, s_cra)
+                    # if jacc > 0.5:
+                    ok_answers.append(s)
+                    added = True
+                    num_predicted_answers += 1
+            if not added:
                 num_removed += 1
+
+            if key in CRA_keys:
+                ok_answers_exact.append(s)
+                num_predicted_answers_exact += 1
+            else:
+                num_removed_exact += 1
 
         ans = get_tokens_for_segments(data, ok_answers, tokenizer)
         print(ans)
 
-    print('number of predicted: ', total_num_predicted_answers)
+        # label the CA data with only the roundtrip consistent labels
+        data_mod = label_CA_data_mod(data, ok_answers)
+        CA_data_mod.append(data_mod)
+        y_labels += data_mod['true_labels']
+        y_preds += data_mod['predicted_labels']
+        item_stats = evaluate_model_answer_spans(data_mod['true_labels'], data_mod['predicted_labels'], word_ids)
+        answer_stats['FP'] += item_stats['FP']
+        answer_stats['TP'] += item_stats['TP']
+        answer_stats['FN'] += item_stats['FN']
+        answer_stats['jaccard'] += item_stats['jaccard']
+        answer_stats['overlap'] += item_stats['overlap']
+        
+
+    print('number of predicted: ', num_predicted_answers)
     print('number of removed: ', num_removed)
-    print('number of answers: ', total_num_answers)
+
+    confusion_matrix_tokens(y_labels, y_preds, 'TEST')
+    pre = answer_stats['TP']/(answer_stats['TP']+answer_stats['FP'])
+    rec = answer_stats['TP']/(answer_stats['TP']+answer_stats['FN'])
+    f1 = 2 * (pre * rec)/(pre + rec)
+    print('Precision, answers: {:.2f}'.format(pre))
+    print('Recall, answers: {:.2f}'.format(rec))
+    print('Mean Jaccard score: {:.2f}'.format(np.mean(np.ravel(answer_stats['jaccard']))))
+    print('Mean answer length diff (predicted - true): {:.2f}'.format(np.mean(np.ravel(answer_stats['overlap']))))
+
+    return CA_data_mod
 
 def compare_text_segments(CA_data, CRA_data, tokenizer, context_text_map):
     num_removed = 0
@@ -151,7 +216,7 @@ def compare_CA_CRA_predictions(CA_data, CRA_data, tokenizer):
     # get the predicted labels for each context text
     context_text_map = get_CRA_map(CRA_data)
     print('len CRA map: ', len(context_text_map.keys()))
-    compare_token_segments(CA_data, CRA_data, tokenizer, context_text_map)
+    CA_data_mod = compare_token_segments(CA_data, CRA_data, tokenizer, context_text_map)
     # compare_text_segments(CA_data, CRA_data, tokenizer, context_text_map)
     
 

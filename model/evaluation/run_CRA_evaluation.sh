@@ -1,5 +1,9 @@
 echo 'RUNNING EVALUATION ON C, R -> A MODEL'
 
+echo 'evaluation on TEST set'
+python eval.py ../results/CRA/fixed_seed/CRA_3e_ISNS_fixed_seed ../data/CRA/tokenized_CRA_data_test_with_id.pkl ./data/CRA/fixed_seed/test_data_CRA_ISNS_strict.pkl ISNS --strict --CRA
+
+
 echo 'evaluation of C, R -> A model, trained with ISNS weighted loss. '
 python eval.py ../results/CRA/fixed_seed/CRA_3e_ISNS_fixed_seed ../data/CRA/tokenized_CRA_data_eval_with_id.pkl ./data/CRA/fixed_seed/tokenized_output_data_CRA_ISNS.pkl ISNS --CRA
 

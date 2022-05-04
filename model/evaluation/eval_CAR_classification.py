@@ -87,8 +87,8 @@ def main(args):
 
     with open(args.data_path, "rb") as input_file:
         validation_data = pickle.load(input_file)
-    random.shuffle(validation_data)
-    validation_data = validation_data[:20]
+    # random.shuffle(validation_data)
+    # validation_data = validation_data[:20]
     evaluate_model(model, tokenizer, validation_data, args.model_name)
     
 if __name__ == '__main__':
