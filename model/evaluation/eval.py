@@ -71,9 +71,10 @@ def correct_word_piece_tokens(tokenized_inputs, labels_in, tokens):
                 label_ids.append(labels_in[idx])
                 previous_word_label = labels_in[idx]
                 # append to token list
-                token_list.append(tokens[idx])
-                token_labels.append(labels_in[idx])
-                token_word_ids.append(word_idx)
+                if tokens[idx] not in CRA_TOKENS:
+                    token_list.append(tokens[idx])
+                    token_labels.append(labels_in[idx])
+                    token_word_ids.append(word_idx)
         else:
             # this token belongs to the same word as the previous 
             # -> must have label that match the previous label 
@@ -406,7 +407,7 @@ def main(args):
 
     with open(args.data_path, "rb") as input_file:
         validation_data = pickle.load(input_file)
-
+        
     evaluate_model(model, tokenizer, validation_data, args.strict, args.model_name, args.token_eval)
 
     # save the outputs for the validation data. to use for comparison between CA and CRA model outputs

@@ -37,7 +37,7 @@ def tokenize_data(tokenizer, data):
     for idx, item in data.iterrows():
         context = item['tokens']
         ans = item['answer']
-        sent = item['sentence']
+        # sent = item['sentence']
         label = item['label'] # 0 / 1
         # calculating the max length..
         tokenized_input = tokenizer(context, ans, truncation=True, max_length=MAX_LEN, is_split_into_words=True)
@@ -56,12 +56,13 @@ def tokenize_data(tokenizer, data):
             # create copy with context id (does not work to train on)
             tokenized_input_with_id = copy.deepcopy(tokenized_input)
             tokenized_input_with_id['context_id'] = item['context_id'] # set the context id of tokenized data
+            tokenized_input_with_id['sentence_id'] = item['sentence_id']
             tokenized_inputs_arr_with_id.append(tokenized_input_with_id)
         else:
             num_removed += 1
     print('num removed: ', num_removed)
-    print('Example: ', tokenized_inputs_arr[20])
-    print('Example: ', tokenized_inputs_arr[21])
+    # print('Example: ', tokenized_inputs_arr[20])
+    # print('Example: ', tokenized_inputs_arr[21])
     return tokenized_inputs_arr, tokenized_inputs_arr_with_id
 
 
