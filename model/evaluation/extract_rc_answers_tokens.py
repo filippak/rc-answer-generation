@@ -71,6 +71,15 @@ def get_best_segments(segments, CRA_segments):
                 added = True
     return ok_answers
 
+def save_extracted_answers(filename, data):
+    with open(filename, 'w') as out:
+        for id, answers in data.items():
+            out.write('-------------------'+ '\n')
+            out.write('Context id: {}'.format(id) + '\n')
+            out.write('Texter\n')
+            for a in answers:
+                out.write(a + '\n')
+
 
 def compare_token_segments(CA_data, CRA_data, tokenizer, context_text_map):
     """ data[i]['token_list'] = true_token_list
@@ -83,11 +92,17 @@ def compare_token_segments(CA_data, CRA_data, tokenizer, context_text_map):
     y_labels = []
     y_preds  = []
     answer_stats = {'FP': 0, 'TP': 0, 'FN': 0, 'jaccard': [], 'overlap': []}
+    answer_phrases = {}
+    CA_answer_phrases = {}
     for data in CA_data:
         # word_ids = data.word_ids()
         segments = get_token_segments(data['predicted_token_labels'], data['token_word_ids'])
         context_id = data['context_id']
         print('context text id: ', context_id)
+        dec = tokenizer.decode(data["input_ids"][1:-1])
+        print('text: ', dec)
+        CA_answers = get_tokens_for_segments(data, segments, tokenizer)
+        CA_answer_phrases[context_id] = CA_answers
         CRA_data_context = context_text_map[context_id]
         CRA_segments = []
         # collect all CRA segments!
@@ -100,6 +115,7 @@ def compare_token_segments(CA_data, CRA_data, tokenizer, context_text_map):
         ans = get_tokens_for_segments(data, ok_answers, tokenizer)
         # TODO: get the relevant sentences for this answer
         print(ans)
+        answer_phrases[context_id] = ans
 
         # label the CA data with only the roundtrip consistent labels
         data_mod = label_CA_data_mod(data, ok_answers)
@@ -113,11 +129,13 @@ def compare_token_segments(CA_data, CRA_data, tokenizer, context_text_map):
         answer_stats['jaccard'] += item_stats['jaccard']
         answer_stats['overlap'] += item_stats['overlap']
         
-
+    save_extracted_answers('./data/roundtrip/subset_10/final_answers.txt', answer_phrases)
+    save_extracted_answers('./data/roundtrip/subset_10/CA_final_answers.txt', CA_answer_phrases)
     print('number of predicted: ', num_predicted_answers)
     print('number of removed: ', num_removed)
 
-    confusion_matrix_tokens(y_labels, y_preds, 'TEST')
+    title = 'Roundtrip consistent results'
+    confusion_matrix_tokens(y_labels, y_preds, title)
     pre = answer_stats['TP']/(answer_stats['TP']+answer_stats['FP'])
     rec = answer_stats['TP']/(answer_stats['TP']+answer_stats['FN'])
     f1 = 2 * (pre * rec)/(pre + rec)

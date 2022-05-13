@@ -35,18 +35,21 @@ def load_data(path):
     return df
 
 def tokenize_data(tokenizer, data, max_tok_len=512, CRA_tok_ids=None):
+    num_max_len = 0
     tokenized_inputs_arr = []
     tokenized_inputs_arr_with_id = []
     for idx, item in data.iterrows():
         context = item['tokens']
         labels = item['labels']
         tokenized_input = align_labels_single_context(context, labels, tokenizer, max_tok_len, True, CRA_tok_ids)
+        if len(tokenized_input['input_ids']) == 512:
+            num_max_len += 1
         tokenized_inputs_arr.append(tokenized_input)
         # create copy with context id (does not work to train on)
         tokenized_input_with_id = copy.deepcopy(tokenized_input)
         tokenized_input_with_id['context_id'] = item['context_id'] # set the context id of tokenized data
         tokenized_inputs_arr_with_id.append(tokenized_input_with_id)
-
+    print('Input of max len: ', num_max_len)
     return tokenized_inputs_arr, tokenized_inputs_arr_with_id
 
 def align_labels_single_context(context, labels_in, tokenizer, max_tok_len=512, special_tokens=True, CRA_tok_ids=None):

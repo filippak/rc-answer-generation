@@ -1,4 +1,3 @@
-from tkinter import N
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
@@ -407,7 +406,7 @@ def main(args):
 
     with open(args.data_path, "rb") as input_file:
         validation_data = pickle.load(input_file)
-        
+
     evaluate_model(model, tokenizer, validation_data, args.strict, args.model_name, args.token_eval)
 
     # save the outputs for the validation data. to use for comparison between CA and CRA model outputs

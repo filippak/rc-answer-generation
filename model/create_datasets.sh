@@ -33,7 +33,7 @@ echo 'embeddings test data, with BGN and END set to -100'
 python dataset.py ../data-analysis/create_dataset/data/CRA/labeled_CRA_data_test.pkl ./data/CRA/BGN_END/tokenized_CRA_data_BGN_END_as_special_test --CRA --CRA_tok_ignore
 
 
-echo 'CREATING CA -> R SENTENCE CLASSIFICATION EMBEDDINGS, scheme A'
+echo 'CREATING CA -> R SENTENCE CLASSIFICATION EMBEDDINGS, scheme C'
 
 echo 'embeddings training data..'
 python dataset_sent_classification_scheme_B.py ../data-analysis/create_dataset/data/CAR_classification/labeled_CAR_data_train.pkl ./data/CAR_classification/sent/tokenized_CAR_class_data_train
@@ -53,7 +53,7 @@ python dataset_sent_classification_scheme_B.py ../data-analysis/create_dataset/d
 echo 'ELECTRA embeddings test data..'
 python dataset_sent_classification_scheme_B.py ../data-analysis/create_dataset/data/CAR_classification/labeled_CAR_data_test.pkl ./data/CAR_classification/sent/electra_tokenized_CAR_class_data_test --electra
 
-echo 'CREATING CA -> R SENTENCE CLASSIFICATION EMBEDDINGS, scheme C'
+echo 'CREATING CA -> R SENTENCE CLASSIFICATION EMBEDDINGS, scheme A / B'
 
 echo 'embeddings training data..'
 python dataset_sent_classification_scheme_A.py ../data-analysis/create_dataset/data/CAR_classification/labeled_CAR_data_train.pkl ./data/CAR_classification/set_token_type/tokenized_CAR_class_data_train

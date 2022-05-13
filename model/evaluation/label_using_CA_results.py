@@ -99,9 +99,12 @@ def divide_CA_data(CA_data):
 
     indexes = np.linspace(0, len(lengths) - 1, 10, dtype='int')
     selected_context_texts = []
+    s_lengths = []
     for idx in indexes:
         selected_context_texts.append(ids[idx])
+        s_lengths.append(lengths[idx])
     print('context text ids: ',selected_context_texts)
+    print('lengths: ', s_lengths)
     return selected_context_texts
 
 def get_CA_subset_data(CA_data, c_ids):

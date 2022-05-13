@@ -28,6 +28,7 @@ def load_data(path):
     return df
 
 def tokenize_data(tokenizer, data):
+    num_max_len = 0
     tokenized_inputs_arr = []
     tokenized_inputs_arr_with_id = []
     special_token_ids = tokenizer.convert_tokens_to_ids(CRA_TOKENS)
@@ -58,10 +59,11 @@ def tokenize_data(tokenizer, data):
         tokenized_input["token_type_ids"][1] = token_type_ids_sent
         tokenized_input["token_type_ids"][2] = token_type_ids_ans
         tokenized_input["token_type_ids"] = [item for sublist in tokenized_input["token_type_ids"] for item in sublist]
-        if len(tokenized_input["input_ids"]) > 512:
-            print('TOO long!!!')
+
         # check  that the tokenized input includes [BGN] and [END] tokens, only add if it does
         if special_token_ids[0] in tokenized_input["input_ids"] and special_token_ids[1] in tokenized_input["input_ids"]:
+            if len(tokenized_input["input_ids"]) == 511:
+                num_max_len += 1
             tokenized_input['label'] = label
             tokenized_inputs_arr.append(tokenized_input)
             # create copy with context id (does not work to train on)
@@ -69,14 +71,10 @@ def tokenize_data(tokenizer, data):
             tokenized_input_with_id['context_id'] = item['context_id'] # set the context id of tokenized data
             tokenized_inputs_arr_with_id.append(tokenized_input_with_id)
         else:
-            # print('DOES NOT INCLUDE IDS!')
-            # print('input: ', tokenized_input)
-            # decoded = tokenizer.decode(tokenized_input["input_ids"])
-            # print('decoded: ', decoded)
             num_removed += 1
+            
     print('num removed: ', num_removed)
-    print('Example: ', tokenized_inputs_arr[20])
-    print('Example: ', tokenized_inputs_arr[21])
+    print('Input of max len: ', num_max_len)
     return tokenized_inputs_arr, tokenized_inputs_arr_with_id
 
 

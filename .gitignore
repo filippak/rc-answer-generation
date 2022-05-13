@@ -4,6 +4,10 @@ dockerProject/results
 dockerProject.zip
 commands.txt
 
+# Quinductor data files
+/baseline_evaluation/Quinductor/data
+/baseline_evaluation/Quinductor/sv
+
 # dataset data
 data/dataset-2022-03-09/
 data/data_cleaned

@@ -28,11 +28,11 @@ def load_data(path):
     return df
 
 def tokenize_data(tokenizer, data):
+    num_max_len = 0
     tokenized_inputs_arr = []
     tokenized_inputs_arr_with_id = []
     special_token_ids = tokenizer.convert_tokens_to_ids(CRA_TOKENS)
     num_removed = 0
-    print(special_token_ids)
     num_neg_for_text = 0
     for idx, item in data.iterrows():
         context = item['tokens']
@@ -41,11 +41,11 @@ def tokenize_data(tokenizer, data):
         label = item['label'] # 0 / 1
         # calculating the max length..
         tokenized_input = tokenizer(context, ans, truncation=True, max_length=MAX_LEN, is_split_into_words=True)
-    
-        if len(tokenized_input["input_ids"]) > 512:
-            print('TOO long!!!')
+
         # check  that the tokenized input includes [BGN] and [END] tokens, only add if it does
         if special_token_ids[0] in tokenized_input["input_ids"] and special_token_ids[1] in tokenized_input["input_ids"]:
+            if len(tokenized_input["input_ids"]) == 512:
+                num_max_len += 1
             # set token_type_id of the highlighted sentence to 1
             idx_bgn = tokenized_input["input_ids"].index(special_token_ids[0])
             idx_end = tokenized_input["input_ids"].index(special_token_ids[1])
@@ -56,11 +56,12 @@ def tokenize_data(tokenizer, data):
             # create copy with context id (does not work to train on)
             tokenized_input_with_id = copy.deepcopy(tokenized_input)
             tokenized_input_with_id['context_id'] = item['context_id'] # set the context id of tokenized data
-            tokenized_input_with_id['sentence_id'] = item['sentence_id']
+            # tokenized_input_with_id['sentence_id'] = item['sentence_id']
             tokenized_inputs_arr_with_id.append(tokenized_input_with_id)
         else:
             num_removed += 1
     print('num removed: ', num_removed)
+    print('Input of max len: ', num_max_len)
     # print('Example: ', tokenized_inputs_arr[20])
     # print('Example: ', tokenized_inputs_arr[21])
     return tokenized_inputs_arr, tokenized_inputs_arr_with_id
