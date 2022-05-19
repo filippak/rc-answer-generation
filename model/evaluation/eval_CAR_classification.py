@@ -48,6 +48,9 @@ def evaluate_model(model, tokenizer, data, model_name):
 
         tokens = tokenizer.convert_ids_to_tokens(data[i]["input_ids"]) # to use if printing results..
         # print_extracted_answers(true_labels, tokens)
+        dec = tokenizer.decode(data[i]["input_ids"][1:-1])
+        print('current text: ', dec)
+        print('output: ', out)
 
         if data[i]['label'] == 1 and out == 1:
             stats['TP'] += 1

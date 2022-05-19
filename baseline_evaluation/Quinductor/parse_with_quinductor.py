@@ -116,7 +116,7 @@ def apply_quinductor(df):
                 # apply the result to Quinductor..
                 tools = qi.use('sv', templates_folder='./sv/swequad/1651743828287737')
                 res = qi.generate_questions(trees, tools)
-                answers = list(set([x.a for x in res]))
+                answers = [x.a for x in res]
                 # answers_for_context += answers
                 # print('answers: ', answers)
                 all_labels, answers = get_all_labels_for_answers(answers, sentence)

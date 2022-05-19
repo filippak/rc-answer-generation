@@ -1,5 +1,3 @@
-from multiprocessing import context
-from tkinter import N
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np

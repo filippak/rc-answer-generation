@@ -255,7 +255,7 @@ def print_extracted_answers(output_labels, tokens, word_ids):
     - tokens: array of tokens corresponding to the labels
     Output: array of strings corresponding to the answer segments as present in the labels array
     """
-    print('tokens: ',tokens)
+    # print('tokens: ',tokens)
     predicted_segments = get_token_segments(output_labels, word_ids)
     all_l = []
     for segment in predicted_segments:
@@ -309,6 +309,9 @@ def evaluate_model(model, tokenizer, data, use_strict, model_name, token_eval):
         out = get_model_predictions(data[i], model)
         word_ids = word_ids = data[i].word_ids()
         tokens = tokenizer.convert_ids_to_tokens(data[i]["input_ids"]) # to use if printing results..
+        dec = tokenizer.decode(data[i]["input_ids"][1:-1])
+        print('current text: ', dec)
+
         true_labels, true_token_list, true_token_labels, token_word_ids = correct_word_piece_tokens(data[i], data[i]['labels'], tokens) # replace the -100 labels used in training..
         y_labels += true_labels
         y_token_labels += true_token_labels
@@ -331,7 +334,7 @@ def evaluate_model(model, tokenizer, data, use_strict, model_name, token_eval):
         data[i]['predicted_token_labels'] = output_token_labels
         y_preds += output_labels
         y_token_preds += output_token_labels
-        # print_extracted_answers(output_labels, tokens, word_ids)
+        print_extracted_answers(output_labels, tokens, word_ids)
         
         # evaluate on token level or WordPiece level
         if token_eval:

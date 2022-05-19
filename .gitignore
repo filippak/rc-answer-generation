@@ -4,6 +4,8 @@ dockerProject/results
 dockerProject.zip
 commands.txt
 
+temp/
+
 # Quinductor data files
 /baseline_evaluation/Quinductor/data
 /baseline_evaluation/Quinductor/sv
@@ -19,6 +21,8 @@ data-analysis/create_dataset/data/
 model/data/
 model/evaluation/data
 model/evaluation/figures
+model/evaluation/fake_CRA_data/data
+model/evaluation/RC/data
 model/results/
 model/wandb/
 

@@ -13,12 +13,12 @@ nlp = stanza.Pipeline(lang='en', processors='tokenize,pos,lemma,depparse')
     
 
 def main(args):
-    doc = nlp('Tim plays basketball with friends and family every Tuesday')
+    doc = nlp('Book the flight through Houston')
 
     print(*[f'id: {word.id}\tword: {word.text}\thead id: {word.head}\thead: {sent.words[word.head-1].text if word.head > 0 else "root"}\tdeprel: {word.deprel}' for sent in doc.sentences for word in sent.words], sep='\n')
 
     # testing udon2 functionality
-    roots = udon2.Importer.from_stanza(nlp("Tim plays basketball with friends and family every Tuesday").to_dict())
+    roots = udon2.Importer.from_stanza(nlp("Book the flight through Houston").to_dict())
     print('roots: ', roots)
     root = roots[0]
     print('root:', root)

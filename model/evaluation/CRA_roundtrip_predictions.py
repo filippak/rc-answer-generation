@@ -32,6 +32,8 @@ def get_CRA_predictions(model, tokenizer, data):
         out = get_model_predictions(data[i], model)
         word_ids = word_ids = data[i].word_ids()
         tokens = tokenizer.convert_ids_to_tokens(data[i]["input_ids"]) # to use if printing results..
+        dec = tokenizer.decode(data[i]["input_ids"])
+        print('input: ', dec)
 
         output_labels, output_token_list, output_token_labels, token_word_ids = correct_word_piece_tokens(data[i], out, tokens)
         # get the predictions
@@ -41,7 +43,7 @@ def get_CRA_predictions(model, tokenizer, data):
         data[i]['predicted_token_labels'] = output_token_labels
         data[i]['token_list'] = output_token_list
         data[i]['token_word_ids'] = token_word_ids
-        # print_extracted_answers(output_labels, tokens, word_ids)
+        print_extracted_answers(output_labels, tokens, word_ids)
     return data
 
 def main(args):
