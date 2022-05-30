@@ -200,13 +200,11 @@ def evaluate_model_answer_spans(true_labels, output_labels, word_ids):
     Input: Two arrays; one of true labels and one of predicted labels
     Output: Statistics of comparison between true labels and predictions
     """
-    stats = {'FP': 0, 'TP': 0, 'FN': 0, 'jaccard': [], 'overlap': []}
+    stats = {'FP': 0, 'TP': 0, 'FN': 0}
     label_segments = get_token_segments(true_labels, word_ids)
     predicted_segments = get_token_segments(output_labels, word_ids)
-    num_answers = len(label_segments)
-
     label_dict = get_correct_answer_dict(label_segments)
-    output_dict = get_correct_answer_dict(predicted_segments)
+    
     for a in label_segments:
         a_start = a[0]
         a_end = a[0]+a[1]-1
@@ -214,37 +212,26 @@ def evaluate_model_answer_spans(true_labels, output_labels, word_ids):
         for s in predicted_segments:
             start = s[0]
             end = s[0]+s[1]-1
-            output_dict_key = str(s[0]) + ' ' + str(s[1])
+
             # check if there is overlap
             if start <= a_end and end >= a_start:
                 jacc = get_jaccard_score(a, s)
+                pred_len = end-start
+                stats['TP'] += 1
                 if label_dict[label_dict_key] != None:
                     # there already exists a predicted answer for this segment..
-                    segments = label_dict[label_dict_key]['segments']
-                    segments.append({'segment':s, 'jaccard': jacc})
-                    label_dict[label_dict_key]['segments'] = segments
-                    if jacc > label_dict[label_dict_key]['max_jacc']:
-                        # update max jaccard score and segment length difference if current answer has higher jaccard score.
-                        label_dict[label_dict_key]['max_jacc'] = jacc
-                        label_dict[label_dict_key]['segment_length'] = s[1]-a[1]
+                    label_dict[label_dict_key].append({'segment':s, 'pred_length': pred_len, 'jaccard': jacc, 'overlap': s[1]-a[1]})
                 else:
-                    stats['TP'] += 1 # only count 1 true positive
-                    label_dict[label_dict_key] = {'max_jacc': jacc, 'segments': [{'segment':s, 'jaccard': jacc}], 'segment_length': s[1]-a[1]}
+                    label_dict[label_dict_key] = [{'segment':s, 'jaccard': jacc, 'pred_length': pred_len, 'overlap': s[1]-a[1]}]
             
-            # only count each of the predicted segments as a false positive once!
-            elif output_dict[output_dict_key] == None:
+            else:
                 stats['FP'] += 1
-                output_dict[output_dict_key] = True
         
         # add the max jaccard score for the current correct answer (if a match was found)
-        if label_dict[label_dict_key] != None:
-            stats['jaccard'].append(label_dict[label_dict_key]['max_jacc'])
-            stats['overlap'].append(label_dict[label_dict_key]['segment_length'])
+        if label_dict[label_dict_key] == None:
+            stats['FN'] += 1 # the number of correct answers that were missed
 
-
-    # the number of correct answers that were missed
-    stats['FN'] += num_answers - stats['TP']
-    return stats
+    return stats, label_dict
 
 def print_extracted_answers(output_labels, tokens, word_ids):
     """
@@ -297,7 +284,7 @@ def evaluate_model(model, tokenizer, data, use_strict, model_name, token_eval):
     - use_strict: flag indicating if evaluating strict
     Output: predictions for input data (array of tensors on size 1)
     """
-    answer_stats = {'FP': 0, 'TP': 0, 'FN': 0, 'jaccard': [], 'overlap': []}
+    answer_stats = {'FP': 0, 'TP': 0, 'FN': 0, 'jaccard': [], 'overlap': [], 'pred_length':[]}
     token_stats = {'FP': 0, 'TP': 0, 'FN': 0}
     # prediction on the wordpiece level
     y_labels = []
@@ -310,7 +297,7 @@ def evaluate_model(model, tokenizer, data, use_strict, model_name, token_eval):
         word_ids = word_ids = data[i].word_ids()
         tokens = tokenizer.convert_ids_to_tokens(data[i]["input_ids"]) # to use if printing results..
         dec = tokenizer.decode(data[i]["input_ids"][1:-1])
-        print('current text: ', dec)
+        # print('current text: ', dec)
 
         true_labels, true_token_list, true_token_labels, token_word_ids = correct_word_piece_tokens(data[i], data[i]['labels'], tokens) # replace the -100 labels used in training..
         y_labels += true_labels
@@ -334,7 +321,7 @@ def evaluate_model(model, tokenizer, data, use_strict, model_name, token_eval):
         data[i]['predicted_token_labels'] = output_token_labels
         y_preds += output_labels
         y_token_preds += output_token_labels
-        print_extracted_answers(output_labels, tokens, word_ids)
+        # print_extracted_answers(output_labels, tokens, word_ids)
         
         # evaluate on token level or WordPiece level
         if token_eval:
@@ -346,12 +333,15 @@ def evaluate_model(model, tokenizer, data, use_strict, model_name, token_eval):
             preds = output_labels
             current_word_ids = word_ids
 
-        item_stats = evaluate_model_answer_spans(labels, preds, current_word_ids)
+        item_stats, scores = evaluate_model_answer_spans(labels, preds, current_word_ids)
         answer_stats['FP'] += item_stats['FP']
         answer_stats['TP'] += item_stats['TP']
         answer_stats['FN'] += item_stats['FN']
-        answer_stats['jaccard'] += item_stats['jaccard']
-        answer_stats['overlap'] += item_stats['overlap']
+        for val in scores.values():
+            if val is not None:
+                answer_stats['pred_length'] += [s['pred_length'] for s in val]
+                answer_stats['jaccard'] += [s['jaccard'] for s in val]
+                answer_stats['overlap'] += [s['overlap'] for s in val]
 
         item_token_stats = evaluate_model_tokens(labels, preds)
         token_stats['FP'] += item_token_stats['FP']
@@ -372,6 +362,7 @@ def evaluate_model(model, tokenizer, data, use_strict, model_name, token_eval):
     print('Precision, answers: {:.2f}'.format(pre))
     print('Recall, answers: {:.2f}'.format(rec))
     # print('F1-score, answers: {:.2f}'.format(f1))
+    print('Mean length of the predicted answers: {:.2f}'.format(np.mean(np.ravel(answer_stats['pred_length']))))
     print('Mean Jaccard score: {:.2f}'.format(np.mean(np.ravel(answer_stats['jaccard']))))
     print('Mean answer length diff (predicted - true): {:.2f}'.format(np.mean(np.ravel(answer_stats['overlap']))))
     

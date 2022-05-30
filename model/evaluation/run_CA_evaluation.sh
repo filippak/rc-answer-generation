@@ -1,7 +1,7 @@
 echo 'RUNNING EVALUATION ON C -> A MODEL'
 
-# echo 'Evaluation on selected model (INS partial) on test data'
-# python eval.py ../results/CA/fixed_seed/CA_3e_INS_fixed_seed ../data/CA/tokenized_CA_data_test_with_id.pkl ./data/CA/fixed_seed/tokenized_output_data_CA_INS_test.pkl INS --token_eval
+echo 'Evaluation on selected model (INS partial) on test data'
+python eval.py ../results/CA/fixed_seed/CA_3e_INS_fixed_seed ../data/CA/tokenized_CA_data_test_with_id.pkl ./data/CA/fixed_seed/tokenized_output_data_CA_INS_test.pkl INS --token_eval
 
 echo 'evaluation of C -> A model, trained with INS weighted loss. '
 python eval.py ../results/CA/fixed_seed/CA_3e_INS_fixed_seed ../data/CA/tokenized_CA_data_eval_with_id.pkl ./data/CA/fixed_seed/tokenized_output_data_CA_INS.pkl INS --token_eval

@@ -91,7 +91,7 @@ def compare_token_segments(CA_data, CRA_data, tokenizer, context_text_map):
     CA_data_mod = []
     y_labels = []
     y_preds  = []
-    answer_stats = {'FP': 0, 'TP': 0, 'FN': 0, 'jaccard': [], 'overlap': []}
+    answer_stats = {'FP': 0, 'TP': 0, 'FN': 0, 'jaccard': [], 'overlap': [], 'pred_length':[]}
     answer_phrases = {}
     CA_answer_phrases = {}
     for data in CA_data:
@@ -122,13 +122,16 @@ def compare_token_segments(CA_data, CRA_data, tokenizer, context_text_map):
         CA_data_mod.append(data_mod)
         y_labels += data_mod['true_token_labels']
         y_preds += data_mod['predicted_token_labels']
-        item_stats = evaluate_model_answer_spans(data_mod['true_token_labels'], data_mod['predicted_token_labels'], data_mod['token_word_ids'])
+        item_stats, scores = evaluate_model_answer_spans(data_mod['true_token_labels'], data_mod['predicted_token_labels'], data_mod['token_word_ids'])
         answer_stats['FP'] += item_stats['FP']
         answer_stats['TP'] += item_stats['TP']
         answer_stats['FN'] += item_stats['FN']
-        answer_stats['jaccard'] += item_stats['jaccard']
-        answer_stats['overlap'] += item_stats['overlap']
-        
+        for val in scores.values():
+            if val is not None:
+                answer_stats['pred_length'] += [s['pred_length'] for s in val]
+                answer_stats['jaccard'] += [s['jaccard'] for s in val]
+                answer_stats['overlap'] += [s['overlap'] for s in val]
+
     save_extracted_answers('./data/roundtrip/subset_10/final_answers.txt', answer_phrases)
     save_extracted_answers('./data/roundtrip/subset_10/CA_final_answers.txt', CA_answer_phrases)
     print('number of predicted: ', num_predicted_answers)
@@ -141,6 +144,7 @@ def compare_token_segments(CA_data, CRA_data, tokenizer, context_text_map):
     f1 = 2 * (pre * rec)/(pre + rec)
     print('Precision, answers: {:.2f}'.format(pre))
     print('Recall, answers: {:.2f}'.format(rec))
+    print('Mean length of the predicted answers: {:.2f}'.format(np.mean(np.ravel(answer_stats['pred_length']))))
     print('Mean Jaccard score: {:.2f}'.format(np.mean(np.ravel(answer_stats['jaccard']))))
     print('Mean answer length diff (predicted - true): {:.2f}'.format(np.mean(np.ravel(answer_stats['overlap']))))
 

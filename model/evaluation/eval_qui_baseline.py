@@ -7,7 +7,7 @@ from eval import confusion_matrix_tokens, evaluate_model_answer_spans, evaluate_
 
 def main(args):
     subset_ids = [1,2,3,6,11,13,17,20,26,40]
-    answer_stats = {'FP': 0, 'TP': 0, 'FN': 0, 'jaccard': [], 'overlap': []}
+    answer_stats = {'FP': 0, 'TP': 0, 'FN': 0, 'jaccard': [], 'overlap': [], 'pred_length':[]}
     token_stats = {'FP': 0, 'TP': 0, 'FN': 0}
     qui_df = pd.read_pickle(args.qui_data_path)
     print('Num qui data points: ', len(qui_df))
@@ -21,12 +21,10 @@ def main(args):
     all_labels = []
     all_preds = []
     for id in context_ids:
-        print('context id: ', id)
         qui_row = qui_df.loc[qui_df['context_id'] == id]
         label_row = labels_df.loc[labels_df['context_id'] == id]
         preds = qui_row['labels'].tolist()[0]
         labels = label_row['labels'].tolist()[0]
-        print('token length: ', len(preds))
         all_labels += list(labels)
         all_preds += list(preds)
 
@@ -37,12 +35,15 @@ def main(args):
         token_stats['FN'] += item_token_stats['FN']
 
         fake_word_ids = list(range(0, len(labels)))
-        item_stats = evaluate_model_answer_spans(labels, preds, fake_word_ids)
+        item_stats, scores = evaluate_model_answer_spans(labels, preds, fake_word_ids)
         answer_stats['FP'] += item_stats['FP']
         answer_stats['TP'] += item_stats['TP']
         answer_stats['FN'] += item_stats['FN']
-        answer_stats['jaccard'] += item_stats['jaccard']
-        answer_stats['overlap'] += item_stats['overlap']
+        for val in scores.values():
+            if val is not None:
+                answer_stats['pred_length'] += [s['pred_length'] for s in val]
+                answer_stats['jaccard'] += [s['jaccard'] for s in val]
+                answer_stats['overlap'] += [s['overlap'] for s in val]
 
     
     pre_t = token_stats['TP']/(token_stats['TP'] + token_stats['FP'])
@@ -54,6 +55,7 @@ def main(args):
     rec = answer_stats['TP']/(answer_stats['TP']+answer_stats['FN'])
     print('Precision, answers: {:.2f}'.format(pre))
     print('Recall, answers: {:.2f}'.format(rec))
+    print('Mean length of the predicted answers: {:.2f}'.format(np.mean(np.ravel(answer_stats['pred_length']))))
     print('Mean Jaccard score: {:.2f}'.format(np.mean(np.ravel(answer_stats['jaccard']))))
     print('Mean answer length diff (predicted - true): {:.2f}'.format(np.mean(np.ravel(answer_stats['overlap']))))
     
